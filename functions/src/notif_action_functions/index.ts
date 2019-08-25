@@ -33,9 +33,19 @@ export async function acceptCommunityInvite(data: any, context: any){
         const userDoc = await userRef.doc(data.uid).get();
         const userData = userDoc.data()!.d;
         const userComs = userData.communities;
-        const communitiesInArea = userComs[data.areaName];
-        communitiesInArea.push(data.comName);
-        userComs[data.areaName] = communitiesInArea;
+        const memberAreas = Object.keys(userComs);
+        if (memberAreas.includes(data.areaName)){
+            const memberComsInArea = userComs[data.areaName];
+            if (memberComsInArea.includes(data.comName)){
+                const comIndex = memberComsInArea.indexOf(data.comName);
+                memberComsInArea.splice(comIndex);
+            } else {
+                memberComsInArea.push(data.comName);
+            }
+            userComs[data.areaName] = memberComsInArea;
+        } else {
+            userComs[data.areaName] = [data.comName];
+        }
         await userRef.doc(data.uid).update({
             'd.communities': userComs
         });

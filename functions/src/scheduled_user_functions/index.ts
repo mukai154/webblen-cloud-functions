@@ -1,11 +1,11 @@
 import * as admin from 'firebase-admin'
+
 const userRef = admin.firestore().collection('webblen_user');
 
-
-export async function rechargeUserAP(data: any, context: any){
+export async function rechargeUserAP(event: any){
     const currentDateInMilliseconds = Date.now();
-    const dateInMilliseconds3DaysAgo = currentDateInMilliseconds - 259200000;
-    const userQuery = await userRef.where('lastAPRechargeInMilliseconds', '<=', dateInMilliseconds3DaysAgo).get();
+    //const dateInMilliseconds3DaysAgo = currentDateInMilliseconds - 259200000;
+    const userQuery = await userRef.where('lastAPRechargeInMilliseconds', '<=', currentDateInMilliseconds).get();
     for (const userDoc of userQuery.docs){
         const userData = userDoc.data().d;
         let ap = userData.ap;
@@ -43,3 +43,4 @@ export async function rechargeUserAP(data: any, context: any){
     }
     return true
 }
+

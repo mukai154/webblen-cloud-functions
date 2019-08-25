@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin'
 
 const messagingAdmin = admin.messaging();
+const userRef = admin.firestore().collection('webblen_user');
 
 export async function sendUserNotification(event: any){
 
@@ -130,8 +131,7 @@ export async function sendNewCommunityPostNotif(event: any){
     const followers = comDocData.followers;
 
     for (const uid in members){
-        const userDocRef = 'webblen_user/' + uid;
-        const userDoc = await admin.firestore().doc(userDocRef).get();
+        const userDoc = await userRef.doc(uid).get();
         const userDocData = userDoc.data()!.d;
         const username = "@" + userDocData.username;
         if (userDocData && authorUsername !== username){
@@ -159,8 +159,7 @@ export async function sendNewCommunityPostNotif(event: any){
     }
 
     for (const uid in followers){
-        const userDocRef = 'webblen_user/' + uid;
-        const userDoc = await admin.firestore().doc(userDocRef).get();
+        const userDoc = await userRef.doc(uid).get();
         const userDocData = userDoc.data()!.d;
         if (userDocData){
             const userToken = userDocData.messageToken;
@@ -223,8 +222,7 @@ export async function sendNewCommunityEventNotification(event: any){
     const followers = comDocData.followers;
 
     for (const uid in members){
-        const userDocRef = 'users/' + uid;
-        const userDoc = await admin.firestore().doc(userDocRef).get();
+        const userDoc = await userRef.doc(uid).get();
         const userDocData = userDoc.data()!.d;
         if (userDocData && uid !== authorUid){
             const userToken = userDocData.messageToken;
@@ -251,8 +249,7 @@ export async function sendNewCommunityEventNotification(event: any){
     }
 
     for (const uid in followers){
-        const userDocRef = 'webblen_user/' + uid;
-        const userDoc = await admin.firestore().doc(userDocRef).get();
+        const userDoc = await userRef.doc(uid).get();
         const userDocData = userDoc.data()!.d;
         if (userDocData && uid !== authorUid){
             const userToken = userDocData.messageToken;
@@ -322,8 +319,7 @@ export async function sendNewPostCommentNotification(event: any){
 
     if (commentUserName){
         for (const uid in members){
-                const userDocRef = 'webblen_user/' + uid;
-                const userDoc = await admin.firestore().doc(userDocRef).get();
+                const userDoc = await userRef.doc(uid).get();
                 const userDocData = userDoc.data()!.d;
                 const randNum = Math.floor(Math.random() * 6) + 1; 
                 if (userDocData && randNum > 0 && uid !== commentUID){
@@ -352,8 +348,7 @@ export async function sendNewPostCommentNotification(event: any){
             }
 
             for (const uid in followers){
-                const userDocRef = 'webblen_user/' + uid;
-                const userDoc = await admin.firestore().doc(userDocRef).get();
+                const userDoc = await userRef.doc(uid).get();
                 const userDocData = userDoc.data()!.d;
                 const randNum = Math.floor(Math.random() * 6) + 1; 
                 if (userDocData && randNum > 0 && uid !== commentUID){
@@ -418,7 +413,7 @@ export async function sendMessageReceivedNotification(event: any){
 
 
 
-    const userSnapshots = await admin.firestore().collection('webblen_user').where('d.username', '==', receivingUsername).get();
+    const userSnapshots = await userRef.where('d.username', '==', receivingUsername).get();
     const userDoc = userSnapshots.docs[0];
     const userDocData = userDoc.data().d;
     const userToken = userDocData.messageToken;
@@ -441,7 +436,7 @@ export async function sendMessageReceivedNotification(event: any){
 
     await messagingAdmin.sendToDevice(messageTokens, payload);
 
-    return admin.firestore().doc("webblen_user/" + receivingUID).update({
+    return userRef.doc(receivingUID).update({
         'd.messageNotificationCount': messageNotificationCount,
         'd.notificationCount': notificationCount
     });

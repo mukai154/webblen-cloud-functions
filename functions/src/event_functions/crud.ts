@@ -141,7 +141,7 @@ export async function areCheckInsAvailable(data: any, context: any){
     let checkInsAvailable = false;
     const currentDateInMilliseconds = Date.now();
     const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
-    const query = await upcomingEventsGeoRef.near({center: geoPoint, radius: 1}).get();
+    const query = await upcomingEventsGeoRef.near({center: geoPoint, radius: 0.75}).get();
     if (query.docs.length > 0){
         for (const doc of query.docs){
             if (doc.data().endDateInMilliseconds >= currentDateInMilliseconds 
@@ -158,7 +158,7 @@ export async function getEventsForCheckIn(data: any, context: any){
     const events = [];
     const currentDateInMilliseconds = Date.now();
     const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
-    const query = await upcomingEventsGeoRef.near({center: geoPoint, radius: 1})
+    const query = await upcomingEventsGeoRef.near({center: geoPoint, radius: 0.25})
     .get();
     for (const doc of query.docs){
         if (doc.data().endDateInMilliseconds >= currentDateInMilliseconds && doc.data().startDateInMilliseconds <= currentDateInMilliseconds){
@@ -172,6 +172,25 @@ export async function getEventsForCheckIn(data: any, context: any){
 //**
 //** 
 //UPDATE
+export async function convertRadiusToDouble(event: any){
+    const eventData = event.data();
+    console.log(eventData);
+    
+    const eventKey = eventData.eventKey;
+    let website = eventData.website;
+    let fbSite = eventData.fbSite;
+    website = website.replace('http://www.', '');
+    fbSite = fbSite.replace('http://www.', '');
+    let radius = eventData.radius;
+    radius = radius * 1.01;
+    
+    await recurringEventsRef.doc(eventKey).update({
+        'radius': radius,
+        'website': website,
+        'fbSite': fbSite
+    });
+}
+
 export async function updateEventViews(data: any, context: any){
     const eventDocRef = await upcomingEventsRef.doc(data.eventID);
     const eventDoc = await eventDocRef.get();

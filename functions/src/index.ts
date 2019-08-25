@@ -4,6 +4,7 @@ import * as admin from 'firebase-admin'
 admin.initializeApp(functions.config().firebase);
 
 import * as userFunctions from './user_functions/crud'
+import * as scheduleUserFunctions from './scheduled_user_functions/index'
 import * as eventFunctions from './event_functions/crud'
 import * as communityFunctions from './community_functions/crud'
 import * as adFunctions from './ad_functions/crud'
@@ -105,6 +106,13 @@ export const checkoutAndUpdateEventPayout = functions.https.onCall((data, contex
 
 export const updateEventViews = functions.https.onCall((data, context) => {
     return eventFunctions.updateEventViews(data, context);
+});
+
+export const convertRadiusToDouble = functions
+.firestore
+.document('recurring_events/{event}')
+.onCreate(event => {
+ return eventFunctions.convertRadiusToDouble(event);
 });
 
 //** communities */
@@ -245,6 +253,22 @@ export const distrubeEventPoints = functions
 .onRun(event => {
     return jobFunctions.distributeEventPoints(event);
 });
+
+export const rechargeUserAP = functions
+.pubsub 
+.schedule('every 3 hours')
+.timeZone('America/Chicago')
+.onRun(event => {
+    return scheduleUserFunctions.rechargeUserAP(event);
+});
+
+// export const setEventRecommendations = functions
+// .pubsub 
+// .schedule('every 1 minutes')
+// .timeZone('America/Chicago')
+// .onRun(event => {
+//     return jobFunctions.setEventRecommendations(event);
+// });
 
 //**
 //**

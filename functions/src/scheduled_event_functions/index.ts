@@ -1,8 +1,14 @@
 import * as admin from 'firebase-admin'
+import * as geo from 'geofirestore'
 
-const upcomingEventsRef = admin.firestore().collection('upcoming_events');
-const pastEventsRef = admin.firestore().collection('past_events');
+const database = admin.firestore();
+const geofirestore = new geo.GeoFirestore(database);
 const userRef = admin.firestore().collection('webblen_user');
+//const recurringEventsRef = database.collection('recurring_events');
+const upcomingEventsRef = database.collection('upcoming_events');
+const upcomingEventsGeoRef = geofirestore.collection('upcoming_events');
+const pastEventsRef = database.collection('past_events');
+//const pastEventsGeoRef = geofirestore.collection('past_events');
 
 export async function setDailyCheckInsAmericaChicago(event: any){
     let i: number;
@@ -79,9 +85,8 @@ export async function setDailyCheckInsAmericaChicago(event: any){
         endDateTime.setSeconds(0);
 
         console.log(endDateTime.getTime() + 18000000);
-
-        await admin.firestore().doc("upcoming_events/" + eventKey).create({
-            eventKey: eventKey,
+        const eventDataMap = {
+          eventKey: eventKey,
             location: recurringEventData.location,
             address: recurringEventData.address,
             authorUid: recurringEventData.authorUid,
@@ -107,6 +112,15 @@ export async function setDailyCheckInsAmericaChicago(event: any){
             flashEvent: false,
             startDateInMilliseconds: startDateTime.getTime() + 18000000,
             endDateInMilliseconds: endDateTime.getTime() + 18000000,
+        }
+  
+        const eventGeohash = recurringEventData.location['geohash'];
+        const eventLoc = recurringEventData.location['geopoint'];
+  
+        await upcomingEventsRef.doc(eventKey).set({
+          'd': eventDataMap,
+          'g': eventGeohash,
+          'l': eventLoc
         });
     }
 }
@@ -438,4 +452,92 @@ export async function distributeEventPoints(event: any){
         });    
       }
     }
+}
+
+export async function setEventRecommendations(event: any){
+  const userQuery = await userRef.get();
+  const currentDateTime = Date.now();
+
+  for (const userDoc of userQuery.docs){
+      const reccommendedEvents: string[] = [];
+      const userData = userDoc.data().d;
+      const userLat = userDoc.data().l.latitude;
+      const userLon = userDoc.data().l.longitude;
+      const geoPoint = new admin.firestore.GeoPoint(userLat, userLon);
+      const eventHistoryKeys = userData.eventHistory;
+
+      console.log(eventHistoryKeys);
+      
+
+      for(const eventKey of eventHistoryKeys){
+          const eventDoc = await pastEventsRef.doc(eventKey).get();
+          if (eventDoc.exists){
+            const eventData = eventDoc.data()!.d;
+            const eventEndDateInMilliseconds = eventData.endDateInMilliseconds
+            if ((currentDateTime - eventEndDateInMilliseconds) > 0){
+              const eventTags = eventData.tags;
+              for (const tag of eventTags){
+                const recommendedQuery = await upcomingEventsGeoRef.near({center: geoPoint, radius: 20}).get();
+                for (const recEventDoc of recommendedQuery.docs){
+                  const docID = recEventDoc.id;
+                  if (!reccommendedEvents.includes(docID) && recEventDoc.data().tags.includes(tag)){
+                    console.log("reccomending user event: " + docID);
+                    reccommendedEvents.push(docID);
+                  }
+                }
+              }
+            }
+          } 
+      }
+  }
+
+  // console.log("userDepositNotification Started...");
+
+  // const prevUserData = event.before.data().d;
+  // const newUserData = event.after.data().d;
+
+  // const messageToken = newUserData.messageToken;
+
+  // console.log("tokens: " + messageToken);
+  
+
+  // const prevPoints = prevUserData.eventPoints;
+  // const newPoints = newUserData.eventPoints;
+
+  // if (newPoints < prevPoints || newPoints === prevPoints){
+  //     return;
+  // }
+
+  // const pointDifference = (newPoints - prevPoints).toFixed(2);
+
+  // const payload = {
+  //     notification: {
+  //         title: "You've Earned Webblen!",
+  //         body: pointDifference + " webblen has been deposited in your wallet",
+  //         badge: "1",
+  //     },
+  //     data: {
+  //         "TYPE": "deposit",
+  //         "DATA": ""
+  //     }
+  // };
+  
+  // await messagingAdmin.sendToDevice(messageToken, payload);
+
+  // const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
+  // const notifExp = new Date().getTime() + 1209600000;
+  // return admin.firestore().doc("user_notifications/" + notifKey).create({
+  //     messageToken: messageToken,
+  //     notificationData: "",
+  //     notificationTitle: "New Deposit!",
+  //     notificationDescription: pointDifference + " webblen has been deposited in your wallet",
+  //     notificationExpirationDate: notifExp.toString(),
+  //     notificationExpDate: notifExp,
+  //     notificationKey: notifKey,
+  //     notificationSeen: false,
+  //     notificationSender: '',
+  //     sponsoredNotification: false,
+  //     notificationType: 'deposit',
+  //     uid: newUserData.uid
+  // });
 }

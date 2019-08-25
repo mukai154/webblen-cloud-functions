@@ -60,7 +60,7 @@ export async function getNearbyUsers(data: any, context: any){
 export async function getNumberOfNearbyUsers(data: any, context: any){
     let num = 0;
     const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
-    const query = await userGeoRef.near({center: geoPoint, radius: 10}).get();
+    const query = await userGeoRef.near({center: geoPoint, radius: 20}).get();
     if (!query.empty){
         num = query.docs.length;
     }
