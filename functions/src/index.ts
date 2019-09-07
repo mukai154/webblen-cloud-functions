@@ -64,9 +64,6 @@ export const getUserEventHistory = functions.https.onCall((data, context) => {
     return eventFunctions.getUserEventHistory(data, context);
 });
 
-// export const getEventsFromFollowedCommunities = functions.https.onCall((data, context) => {
-//     return eventFunctions.getEventsFromFollowedCommunities(data, context);
-// });
 
 export const getEventAttendees = functions.https.onCall((data, context) => {
     return eventFunctions.getEventAttendees(data, context);
@@ -209,7 +206,7 @@ export const sendCommunityPostCommentNotification = functions
 .firestore
 .document('comments/{comment}')
 .onCreate(event => {
- return notificationFunctions.sendNewPostCommentNotification(event);
+ return notificationFunctions.sendCommunityPostCommentNotification(event);
 });
 
 export const sendNewCommunityEventNotification = functions
@@ -252,6 +249,22 @@ export const distrubeEventPoints = functions
 .timeZone('America/Chicago')
 .onRun(event => {
     return jobFunctions.distributeEventPoints(event);
+});
+
+export const addViewsToEvents = functions
+.pubsub    
+.schedule('every 8 hours')
+.timeZone('America/Chicago')
+.onRun(event => {
+    return eventFunctions.addViewsToEvents(event);
+});
+
+export const deleteOldNotifications = functions
+.pubsub    
+.schedule('every day 08:00')
+.timeZone('America/Chicago')
+.onRun(event => {
+    return notifActionFunctions.deleteOldNotifications(event);
 });
 
 export const rechargeUserAP = functions

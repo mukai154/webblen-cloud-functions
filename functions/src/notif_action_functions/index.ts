@@ -81,3 +81,15 @@ export async function denyFriendRequest(data: any, context: any){
     await userNotifRef.doc(data.notifKey).delete();
     return true;
 }
+
+export async function deleteOldNotifications(event: any){
+    const dateInMillisecondsFiveDaysAgo = Date.now() - 432000000;
+    const userNotifQuery = await userNotifRef.get();
+    for (const userNotifDoc of userNotifQuery.docs){
+        const userNotifData = userNotifDoc.data();
+        const notifExpDate = userNotifData.notificationExpDate;
+        if (notifExpDate < dateInMillisecondsFiveDaysAgo){
+            await userNotifRef.doc(userNotifDoc.id).delete();
+        }
+    }
+}

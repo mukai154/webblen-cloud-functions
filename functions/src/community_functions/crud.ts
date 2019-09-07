@@ -58,8 +58,9 @@ export async function getNearbyCommunities(data: any, context: any){
     for (const doc of query.docs){
         const comQuery = await database.collection('locations').doc(doc.id).collection('communities').get();
         for (const comDoc of comQuery.docs){
-            if (comDoc.exists){
-                communities.push(comDoc.data());
+            const comData = comDoc.data();
+            if (comData.communityType === 'public'){
+                communities.push(comData);
             }
         }
     }

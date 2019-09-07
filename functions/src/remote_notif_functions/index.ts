@@ -294,13 +294,13 @@ export async function sendNewCommunityEventNotification(event: any){
     
 }
 
-export async function sendNewPostCommentNotification(event: any){
+export async function sendCommunityPostCommentNotification(event: any){
 
     console.log("sendNewPostCommentNotification Started...");
     const messageTokens: any[] = [];
 
     const commentData = event.data();
-    const commentUID = event.data().uid;
+    //const commentUID = event.data().uid;
     const commentPostID = commentData.postID;
     const commentUserName = commentData.username;
     const postDocRef = 'community_news/' + commentPostID;
@@ -314,22 +314,87 @@ export async function sendNewPostCommentNotification(event: any){
     const comDoc = await admin.firestore().doc(comDocRef).get();
     const comDocData = comDoc.data()!;
 
-    const members = comDocData.members;
+    const members = comDocData.memberIDs;
     const followers = comDocData.followers;
+    const sentNotif: any[] = [];
 
-    if (commentUserName){
-        for (const uid in members){
-                const userDoc = await userRef.doc(uid).get();
-                const userDocData = userDoc.data()!.d;
-                const randNum = Math.floor(Math.random() * 6) + 1; 
-                if (userDocData && randNum > 0 && uid !== commentUID){
-                    const userToken = userDocData.messageToken;
-                    if (userToken){
-                        messageTokens.push(userToken);
+    
+    for(const uid of members){
+        console.log(uid);
+        const userDoc = await userRef.doc(uid).get();
+        const userData = userDoc.data()!.d;
+        console.log(userData); 
+        if (userData.lastNotificationTimeInMilliseconds !== undefined){
+            //const lastNotifTime = userData.lastNotificationTimeInMilliseconds;
+            if (!sentNotif.includes(uid)){
+                sentNotif.push(uid);
+                messageTokens.push(userData.messageToken);
+                    const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
+                    const notifExp = new Date().getTime() + 1209600000;
+                    await admin.firestore().doc("user_notifications/" + notifKey).create({
+                        messageToken: userData.messageToken,
+                        notificationData: comAreaName + "." + comName,
+                        notificationTitle: comAreaName + "/" + comName + ": " + postTitle,
+                        notificationDescription:  "@" + commentUserName + " made a comment",
+                        notificationExpirationDate: notifExp.toString(),
+                        notificationExpDate: notifExp,
+                        notificationKey: notifKey,
+                        notificationSeen: false,
+                        notificationSender: postDocData.postID,
+                        sponsoredNotification: false,
+                        notificationType: 'newPostComment',
+                        uid: userData.uid
+                    });  
+                    // await userRef.doc(uid).update({
+                    //     'lastNotificationTimeInMilliseconds': Date.now()
+                    // });
+                
+            }
+        } else {
+            if (!sentNotif.includes(uid)){
+                sentNotif.push(uid);
+                messageTokens.push(userData.messageToken);
+                    const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
+                    const notifExp = new Date().getTime() + 1209600000;
+                    await admin.firestore().doc("user_notifications/" + notifKey).create({
+                        messageToken: userData.messageToken,
+                        notificationData: comAreaName + "." + comName,
+                        notificationTitle: comAreaName + "/" + comName + ": " + postTitle,
+                        notificationDescription:  "@" + commentUserName + " made a comment",
+                        notificationExpirationDate: notifExp.toString(),
+                        notificationExpDate: notifExp,
+                        notificationKey: notifKey,
+                        notificationSeen: false,
+                        notificationSender: postDocData.postID,
+                        sponsoredNotification: false,
+                        notificationType: 'newPostComment',
+                        uid: userData.uid
+                    });  
+                    // await userRef.doc(uid).update({
+                    //     'lastNotificationTimeInMilliseconds': Date.now()
+                    // });
+                
+            }
+                // await userRef.doc(uid).update({
+                //     'lastNotificationTimeInMilliseconds': Date.now()
+                // });
+            } 
+        }
+        
+        for (const uid of followers){
+            console.log(uid);
+            const userDoc = await userRef.doc(uid).get();
+            const userData = userDoc.data()!;
+            console.log(userData); 
+            if (userData.lastNotificationTimeInMilliseconds !== undefined){
+                //const lastNotifTime = userData.lastNotificationTimeInMilliseconds;
+                if (!sentNotif.includes(uid)){
+                    sentNotif.push(uid);
+                    messageTokens.push(userData.messageToken);
                         const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
                         const notifExp = new Date().getTime() + 1209600000;
                         await admin.firestore().doc("user_notifications/" + notifKey).create({
-                            messageToken: userToken,
+                            messageToken: userData.messageToken,
                             notificationData: comAreaName + "." + comName,
                             notificationTitle: comAreaName + "/" + comName + ": " + postTitle,
                             notificationDescription:  "@" + commentUserName + " made a comment",
@@ -340,25 +405,21 @@ export async function sendNewPostCommentNotification(event: any){
                             notificationSender: postDocData.postID,
                             sponsoredNotification: false,
                             notificationType: 'newPostComment',
-                            uid: userDocData.uid
-                        });
-                    }
+                            uid: userData.uid
+                        });  
+                        // await userRef.doc(uid).update({
+                        //     'lastNotificationTimeInMilliseconds': Date.now()
+                        // });
                     
                 }
-            }
-
-            for (const uid in followers){
-                const userDoc = await userRef.doc(uid).get();
-                const userDocData = userDoc.data()!.d;
-                const randNum = Math.floor(Math.random() * 6) + 1; 
-                if (userDocData && randNum > 0 && uid !== commentUID){
-                    const userToken = userDocData.messageToken;
-                    if (userToken && !messageTokens.includes(userToken)){
-                        messageTokens.push(userToken);
+            } else {
+                if (!sentNotif.includes(uid)){
+                    sentNotif.push(uid);
+                    messageTokens.push(userData.messageToken);
                         const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
                         const notifExp = new Date().getTime() + 1209600000;
                         await admin.firestore().doc("user_notifications/" + notifKey).create({
-                            messageToken: userToken,
+                            messageToken: userData.messageToken,
                             notificationData: comAreaName + "." + comName,
                             notificationTitle: comAreaName + "/" + comName + ": " + postTitle,
                             notificationDescription:  "@" + commentUserName + " made a comment",
@@ -369,12 +430,18 @@ export async function sendNewPostCommentNotification(event: any){
                             notificationSender: postDocData.postID,
                             sponsoredNotification: false,
                             notificationType: 'newPostComment',
-                            uid: userDocData.uid
-                        });
-                    }
-                }        
-            }
-
+                            uid: userData.uid
+                        });  
+                        // await userRef.doc(uid).update({
+                        //     'lastNotificationTimeInMilliseconds': Date.now()
+                        // });
+                    
+                }
+                    // await userRef.doc(uid).update({
+                    //     'lastNotificationTimeInMilliseconds': Date.now()
+                    // });
+                }  
+        }
         const notifTitle = comAreaName + "/" + comName + ": " + postTitle;
         const notifBody = "@" + commentUserName + " made a comment";
 
@@ -391,7 +458,7 @@ export async function sendNewPostCommentNotification(event: any){
         };
     
         await messagingAdmin.sendToDevice(messageTokens, payload);
-    }
+    
     
 }
 
@@ -440,5 +507,4 @@ export async function sendMessageReceivedNotification(event: any){
         'd.messageNotificationCount': messageNotificationCount,
         'd.notificationCount': notificationCount
     });
-
 }

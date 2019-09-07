@@ -86,7 +86,9 @@ export async function setDailyCheckInsAmericaChicago(event: any){
 
         console.log(endDateTime.getTime() + 18000000);
         const eventDataMap = {
-          eventKey: eventKey,
+            eventKey: eventKey,
+            privacy: recurringEventData.privacy,
+            eventType: recurringEventData.eventType,
             location: recurringEventData.location,
             address: recurringEventData.address,
             authorUid: recurringEventData.authorUid,
@@ -246,6 +248,8 @@ export async function setWeeklyCheckInsAmericaChicago(event: any){
         eventKey: eventKey,
           location: recurringEventData.location,
           address: recurringEventData.address,
+          privacy: recurringEventData.privacy,
+          eventType: recurringEventData.eventType,
           authorUid: recurringEventData.authorUid,
           communityName: recurringEventData.comName,
           communityAreaName: recurringEventData.areaName,

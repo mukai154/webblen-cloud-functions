@@ -35,21 +35,25 @@ export async function getUserEventHistory(data: any, context: any){
 
 export async function getEventAttendees(data: any, context: any){
     const attendees = [];
-    if (data.pastOrFuture === 'past'){
-        const eventDoc = await pastEventsRef.doc(data.eventID).get();
-        const eventData = eventDoc.data()!.d;
+    const presentDoc = await upcomingEventsRef.doc(data.eventID).get();
+    if (presentDoc.data() !== undefined){
+        console.log(presentDoc);
+        const eventData = presentDoc.data()!.d;
         const userIDs = eventData.attendees;
         for (const uid of userIDs){
+            console.log(uid);
             const userDoc = await userRef.doc(uid).get();        
             if (userDoc.exists){
                 attendees.push(userDoc.data()!.d);
             }
         }
     } else {
-        const eventDoc = await upcomingEventsRef.doc(data.eventID).get();
-        const eventData = eventDoc.data()!.d;
+        const pastDoc = await pastEventsRef.doc(data.eventID).get();
+        console.log(pastDoc);
+        const eventData = pastDoc.data()!.d;
         const userIDs = eventData.attendees;
         for (const uid of userIDs){
+            console.log(uid);
             const userDoc = await userRef.doc(uid).get();        
             if (userDoc.exists){
                 attendees.push(userDoc.data()!.d);
@@ -59,17 +63,18 @@ export async function getEventAttendees(data: any, context: any){
     return attendees;
 }
 
-// export async function getEventsFromFollowedCommunities(data: any, context: any){
-//     //const events = [];
-//     const uid = data.uid;
-//     const userDoc = await userRef.doc(uid).get();
-//     const userData = userDoc.data()!.d;
-//     const communities = userData.followingCommunities;
-//     const areas = communities.call(communities, (val: any) => {
-//         console.log(val);
-//     })
-//     console.log(areas);
-// }
+export async function addViewsToEvents(data: any){
+    const eventQuery = await upcomingEventsRef.get();
+    for (const eventDoc of eventQuery.docs){
+        const randomView = Math.floor(Math.random() * 3) + 1;
+        const eventData = eventDoc.data().d;
+        let eventViews = eventData.views;
+        eventViews = eventViews + randomView;
+        await upcomingEventsRef.doc(eventDoc.id).update({
+            'd.views': eventViews
+        });
+    }
+}
 
 export async function getEventsNearLocation(data: any, context: any){
     const events = [];
@@ -158,7 +163,7 @@ export async function getEventsForCheckIn(data: any, context: any){
     const events = [];
     const currentDateInMilliseconds = Date.now();
     const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
-    const query = await upcomingEventsGeoRef.near({center: geoPoint, radius: 0.25})
+    const query = await upcomingEventsGeoRef.near({center: geoPoint, radius: .75})
     .get();
     for (const doc of query.docs){
         if (doc.data().endDateInMilliseconds >= currentDateInMilliseconds && doc.data().startDateInMilliseconds <= currentDateInMilliseconds){

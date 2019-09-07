@@ -51,10 +51,12 @@ export async function getNearbyUsers(data: any, context: any){
     const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
     const query = await userGeoRef.near({center: geoPoint, radius: 10}).get();
     for (const doc of query.docs){
+        console.log(doc.id);
+        console.log(doc.data());
         usersData.push(doc.data());
     }
     console.log(usersData.length);
-    return usersData;
+    return JSON.stringify(usersData);
 }
 
 export async function getNumberOfNearbyUsers(data: any, context: any){
@@ -86,7 +88,7 @@ export async function get10RandomUsers(data: any, context: any){
         }  
         
     }
-    return usersData;
+    return JSON.stringify(usersData);
 }
 
 export async function getUsersFromList(data: any, context: any){
@@ -95,10 +97,12 @@ export async function getUsersFromList(data: any, context: any){
     for (const uid of userIDs){
         const userDoc = await userRef.doc(uid).get();
         if (userDoc.exists){
-            usersData.push(userDoc.data()!.d)
+            if (userDoc.data()!.d !== undefined){
+                usersData.push(userDoc.data()!.d)
+            }
         }
     }
-    return usersData;
+    return JSON.stringify(usersData);
 }
 
 
