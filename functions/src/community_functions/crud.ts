@@ -34,20 +34,17 @@ export async function getCommunityByName(data: any, context: any){
 
 export async function getUserCommunities(data: any, context: any){
     const userComs = [];
-    const userDoc = await userRef.doc(data.uid).get();
-    const userData = userDoc.data()!.d;
-    const comData = userData.communities;
-    const areaNames = Object.keys(comData);
-    for (const areaName of areaNames){
-        console.log(areaName);
-        const comQuery = await comRef.doc(areaName).collection('communities').where('memberIDs', 'array-contains', data.uid).get();
-        console.log(comQuery);
+    const locations = [];
+    const locQuery = await comRef.get();
+    for (const locDoc of locQuery.docs){
+        locations.push(locDoc.id);
+    }
+    for (const loc of locations){
+        const comQuery = await comRef.doc(loc).collection('communities').where('memberIDs', 'array-contains', data.uid).get();
         for (const comDoc of comQuery.docs){
-            console.log(comDoc.data());
             userComs.push(comDoc.data());
         }
     }
-    console.log(userComs);
     return userComs;
 }
 
@@ -103,7 +100,7 @@ export async function removeInvitedUserFromCommunity(data: any, context: any){
         const invitedUsers = comData.invited;
         if (invitedUsers.includes(data.uid)){
             const index = invitedUsers.indexOf(data.uid);
-            invitedUsers.splice(index);
+            invitedUsers.splice(index, 1);
         }
         await comRef.doc(data.areaName).collection('communities').doc(data.comName).update({
             'invited': invitedUsers
@@ -121,7 +118,7 @@ export async function updateCommunityFollowers(data: any, context: any){
     const followers = comData.followers;
     if (followers.includes(data.uid)){
         const followerIndex = followers.indexOf(data.uid);
-        followers.splice(followerIndex);
+        followers.splice(followerIndex, 1);
         activityCount = activityCount - 1;
     } else {
         followers.push(data.uid);
@@ -142,7 +139,7 @@ export async function updateCommunityFollowers(data: any, context: any){
         const communitiesFollowingInArea = followingCommunities[areaName];
         if (communitiesFollowingInArea.includes(data.comName)){
             const comIndex = communitiesFollowingInArea.indexOf(data.comName);
-            communitiesFollowingInArea.splice(comIndex);
+            communitiesFollowingInArea.splice(comIndex, 1);
         } else {
             communitiesFollowingInArea.push(data.comName);
         }
@@ -162,7 +159,7 @@ export async function leaveCommunity(data: any, context: any){
     const memberIDs = comData.memberIDs;
     if (memberIDs.includes(data.uid)){
         const memberIDIndex = memberIDs.indexOf(data.uid);
-        memberIDs.splice(memberIDIndex);
+        memberIDs.splice(memberIDIndex, 1);
     }
     await comRef.doc(data.areaName).collection('communities').doc(data.comName).update({
         'memberIDs': memberIDs,
@@ -174,9 +171,47 @@ export async function leaveCommunity(data: any, context: any){
     const communitiesInArea = userComs[data.areaName];
     if (communitiesInArea.includes(data.comName)){
         const comIndex = communitiesInArea.indexOf(data.comName);
-        communitiesInArea.splice(comIndex);
+        communitiesInArea.splice(comIndex, 1);
     }
     userComs[data.areaName] = communitiesInArea;
+    await userRef.doc(data.uid).update({
+        'd.communities': userComs
+    });
+    return true;
+}
+export async function joinCommunity(data: any, context: any){
+    //Update Com Data
+    const areaName = data.areaName;
+    const comName = data.comName;
+    const comDoc = await comRef.doc(areaName).collection('communities').doc(comName).get();
+    const comData = comDoc.data()!;
+    const memberIDs = comData.memberIDs;
+    let comStatus = comData.status;
+    let activityCount = comData.activityCount
+    memberIDs.push(data.uid);
+    activityCount = activityCount + 1;
+    if (memberIDs.keys.length >= 3){
+            comStatus = 'active';
+    }
+    await comRef.doc(areaName).collection('communities').doc(comName).update({
+        'memberIDs': memberIDs,
+        'activityCount': activityCount,
+        'status': comStatus,
+    });
+    //Update User Data
+    const userDoc = await userRef.doc(data.uid).get();
+    const userData = userDoc.data()!.d;
+    const userComs = userData.communities;
+    const memberAreas = Object.keys(userComs);
+    if (memberAreas.includes(areaName)){
+        const memberComsInArea = userComs[areaName];
+        if (!memberComsInArea.includes(comName)){
+            memberComsInArea.push(comName);
+        } 
+        userComs[areaName] = memberComsInArea;
+    } else {
+        userComs[areaName] = [comName];
+    }
     await userRef.doc(data.uid).update({
         'd.communities': userComs
     });
@@ -189,24 +224,16 @@ export async function updateCommunityMembers(data: any, context: any){
     const comName = data.comName;
     const comDoc = await comRef.doc(areaName).collection('communities').doc(comName).get();
     const comData = comDoc.data()!;
-    const members = comData.members;
     const memberIDs = comData.IDs;
     let comStatus = comData.status;
     let activityCount = comData.activityCount
-    if (memberIDs.includes(data.uid)){
-        const memberIDIndex = memberIDs.indexOf(data.uid);
-        memberIDs.splice(memberIDIndex);
-        delete members.data.uid
-    } else {
-        memberIDs.push(data.uid);
-        members[data.uid] = data.profilePic;
-        activityCount = activityCount + 1;
-        if (members.keys.length >= 3){
+    memberIDs.push(data.uid);
+    activityCount = activityCount + 1;
+    if (memberIDs.keys.length >= 3){
             comStatus = 'active';
-        }
     }
+    
     await comRef.doc(areaName).collection('communities').doc(comName).update({
-        'members': members,
         'memberIDs': memberIDs,
         'activityCount': activityCount,
         'status': comStatus,
@@ -219,12 +246,9 @@ export async function updateCommunityMembers(data: any, context: any){
     const memberAreas = Object.keys(userComs);
     if (memberAreas.includes(areaName)){
         const memberComsInArea = userComs[areaName];
-        if (memberComsInArea.includes(comName)){
-            const comIndex = memberComsInArea.indexOf(comName);
-            memberComsInArea.splice(comIndex);
-        } else {
+        if (!memberComsInArea.includes(comName)){
             memberComsInArea.push(comName);
-        }
+        } 
         userComs[areaName] = memberComsInArea;
     } else {
         userComs[areaName] = [comName];

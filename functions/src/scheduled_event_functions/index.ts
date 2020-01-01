@@ -8,6 +8,7 @@ const userRef = admin.firestore().collection('webblen_user');
 const upcomingEventsRef = database.collection('upcoming_events');
 const upcomingEventsGeoRef = geofirestore.collection('upcoming_events');
 const pastEventsRef = database.collection('past_events');
+//const userCalendarRef = database.collection('user_calendars');
 //const pastEventsGeoRef = geofirestore.collection('past_events');
 
 export async function setDailyCheckInsAmericaChicago(event: any){
@@ -407,6 +408,8 @@ export async function distributeEventPoints(event: any){
   
   for (const eventDoc of eventSnapshots.docs) {
     const eventData = eventDoc.data().d;
+    const attendees = eventData.attendees;
+    console.log(attendees.length);
     const eventGeohash = eventDoc.data().g;
     const eventLoc = eventDoc.data().l;
     const eventKey = eventData.eventKey;
@@ -416,54 +419,56 @@ export async function distributeEventPoints(event: any){
       'g': eventGeohash,
       'l': eventLoc
     });
+    await upcomingEventsRef.doc(eventData.authorUid).collection('events').doc(eventKey).delete();
     await upcomingEventsRef.doc(eventKey).delete();
 
     //CALCUTATE PAYOUTS
-    const attendees = eventData.attendees;
-      const eventPayout = eventData.eventPayout;
-      for (const uid of attendees){
-        const userSnapshot = await userRef.doc(uid).get();
-        const userData = userSnapshot.data()!.d;
-        const eventHistory = userData.eventHistory;
-        eventHistory.push(eventKey);
-        //AP & AMOUNT EARNED
-        let ap = userData.ap;
-        let apLvl = userData.apLvl;
-        let eventsToLvlUp = userData.eventsToLvlUp;
-        let eventPoints = userData.eventPoints;
-        const amountEarned = (eventPayout * (attendees.length)) * ap;
-        eventPoints = eventPoints + amountEarned;
-        ap = ap - (ap * 0.15);
-        if (eventsToLvlUp >= 1){
-          eventsToLvlUp = eventsToLvlUp - 1;
-        }
-        if (eventsToLvlUp === 0 && apLvl < 5){
-          apLvl = apLvl + 1;
-          if (apLvl === 2){
-            eventsToLvlUp = 50;
-          } else if (apLvl === 3){
-            eventsToLvlUp = 100;
-          } else if (apLvl === 4){
-            eventsToLvlUp = 200;
-          }
-        }
-        await userRef.doc(uid).update({
-          'd.ap': ap,
-          'd.apLvl': apLvl,
-          'd.eventsToLvlUp': eventsToLvlUp,
-          'd.eventPoints': eventPoints,
-          'd.eventHistory': eventHistory
-        });    
+   if (attendees.length > 0){
+    for (const uid of attendees){
+      const userSnapshot = await userRef.doc(uid).get();
+      const userData = userSnapshot.data()!.d;
+      const eventHistory = userData.eventHistory;
+      eventHistory.push(eventKey);
+      //AP & AMOUNT EARNED
+      let ap = userData.ap;
+      let apLvl = userData.apLvl;
+      let eventsToLvlUp = userData.eventsToLvlUp;
+      let eventPoints = userData.eventPoints;
+      const amountEarned = Math.log(400) * (attendees.length) * ap;
+      eventPoints = eventPoints + amountEarned;
+      ap = ap - (ap * 0.15);
+      if (eventsToLvlUp >= 1){
+        eventsToLvlUp = eventsToLvlUp - 1;
       }
+      if (eventsToLvlUp === 0 && apLvl < 5){
+        apLvl = apLvl + 1;
+        if (apLvl === 2){
+          eventsToLvlUp = 50;
+        } else if (apLvl === 3){
+          eventsToLvlUp = 100;
+        } else if (apLvl === 4){
+          eventsToLvlUp = 200;
+        }
+      }
+      await userRef.doc(uid).update({
+        'd.ap': ap,
+        'd.apLvl': apLvl,
+        'd.eventsToLvlUp': eventsToLvlUp,
+        'd.eventPoints': eventPoints,
+        'd.eventHistory': eventHistory
+      });    
     }
+   }    
+  }
 }
 
 export async function setEventRecommendations(event: any){
+  //const messageTokens: any[] = [];
   const userQuery = await userRef.get();
   const currentDateTime = Date.now();
 
   for (const userDoc of userQuery.docs){
-      const reccommendedEvents: string[] = [];
+      const recommendedEvents: string[] = [];
       const userData = userDoc.data().d;
       const userLat = userDoc.data().l.latitude;
       const userLon = userDoc.data().l.longitude;
@@ -471,7 +476,6 @@ export async function setEventRecommendations(event: any){
       const eventHistoryKeys = userData.eventHistory;
 
       console.log(eventHistoryKeys);
-      
 
       for(const eventKey of eventHistoryKeys){
           const eventDoc = await pastEventsRef.doc(eventKey).get();
@@ -484,44 +488,30 @@ export async function setEventRecommendations(event: any){
                 const recommendedQuery = await upcomingEventsGeoRef.near({center: geoPoint, radius: 20}).get();
                 for (const recEventDoc of recommendedQuery.docs){
                   const docID = recEventDoc.id;
-                  if (!reccommendedEvents.includes(docID) && recEventDoc.data().tags.includes(tag)){
+                  if (!recommendedEvents.includes(docID) && recEventDoc.data().tags.includes(tag)){
                     console.log("reccomending user event: " + docID);
-                    reccommendedEvents.push(docID);
+                    recommendedEvents.push(docID);
                   }
                 }
               }
             }
           } 
       }
+
+      await userRef.doc(userDoc.id).update({
+        'recommendedEvents': recommendedEvents
+      });
+
   }
-
-  // console.log("userDepositNotification Started...");
-
-  // const prevUserData = event.before.data().d;
-  // const newUserData = event.after.data().d;
-
-  // const messageToken = newUserData.messageToken;
-
-  // console.log("tokens: " + messageToken);
-  
-
-  // const prevPoints = prevUserData.eventPoints;
-  // const newPoints = newUserData.eventPoints;
-
-  // if (newPoints < prevPoints || newPoints === prevPoints){
-  //     return;
-  // }
-
-  // const pointDifference = (newPoints - prevPoints).toFixed(2);
 
   // const payload = {
   //     notification: {
-  //         title: "You've Earned Webblen!",
-  //         body: pointDifference + " webblen has been deposited in your wallet",
+  //         title: "New Reccomendations Available!",
+  //         body: "We have a new set of events we think you'll like 😍",
   //         badge: "1",
   //     },
   //     data: {
-  //         "TYPE": "deposit",
+  //         "TYPE": "",
   //         "DATA": ""
   //     }
   // };

@@ -9,8 +9,6 @@ export async function acceptCommunityInvite(data: any, context: any){
     const comDoc = await comRef.doc(data.areaName).collection('communities').doc(data.comName).get();
     console.log(data.areaName);
     console.log(data.comName);
-    
-    
     if (comDoc.exists){
         //Update Com Data
         let memberIDs = [];
@@ -27,27 +25,6 @@ export async function acceptCommunityInvite(data: any, context: any){
             'memberIDs': memberIDs,
             'activityCount': activityCount,
             'status': comStatus,
-        });
-
-         //Update User Data
-        const userDoc = await userRef.doc(data.uid).get();
-        const userData = userDoc.data()!.d;
-        const userComs = userData.communities;
-        const memberAreas = Object.keys(userComs);
-        if (memberAreas.includes(data.areaName)){
-            const memberComsInArea = userComs[data.areaName];
-            if (memberComsInArea.includes(data.comName)){
-                const comIndex = memberComsInArea.indexOf(data.comName);
-                memberComsInArea.splice(comIndex);
-            } else {
-                memberComsInArea.push(data.comName);
-            }
-            userComs[data.areaName] = memberComsInArea;
-        } else {
-            userComs[data.areaName] = [data.comName];
-        }
-        await userRef.doc(data.uid).update({
-            'd.communities': userComs
         });
     }
     await userNotifRef.doc(data.notifKey).delete();

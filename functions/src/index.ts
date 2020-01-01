@@ -9,9 +9,13 @@ import * as eventFunctions from './event_functions/crud'
 import * as communityFunctions from './community_functions/crud'
 import * as adFunctions from './ad_functions/crud'
 import * as newPostFunctions from './news_post_functions/crud'
+import * as communityReqFunctions from './community_request_functions/crud'
 import * as notificationFunctions from './remote_notif_functions/index'
 import * as notifActionFunctions from './notif_action_functions/index'
 import * as jobFunctions from './scheduled_event_functions/index'
+import * as transactionFunctions from './transaction_functions/index'
+import * as algoliaFunctions from './algolia/keys'
+import * as calendarFunctions from './calendar_functions/crud'
 
 //** users */
 export const getUserByID = functions.https.onCall((data, context) => {
@@ -60,10 +64,21 @@ export const updateUserNotifPreferences = functions.https.onCall((data, context)
 });
 
 //** events */
+export const getEventByKey = functions.https.onCall((data, context) => {
+    return eventFunctions.getEventByKey(data, context);
+});
+
 export const getUserEventHistory = functions.https.onCall((data, context) => {
     return eventFunctions.getUserEventHistory(data, context);
 });
 
+export const getCreatedEvents = functions.https.onCall((data, context) => {
+    return eventFunctions.getCreatedEvents(data, context);
+});
+
+export const getsSavedEvents = functions.https.onCall((data, context) => {
+    return eventFunctions.getSavedEvents(data, context);
+});
 
 export const getEventAttendees = functions.https.onCall((data, context) => {
     return eventFunctions.getEventAttendees(data, context);
@@ -89,6 +104,10 @@ export const getExclusiveWebblenEvents = functions.https.onCall((data, context) 
     return eventFunctions.getExclusiveWebblenEvents(data, context);
 });
 
+export const getRecommendedEvents = functions.https.onCall((data, context) => {
+    return eventFunctions.getRecommendedEvents(data, context);
+});
+
 export const areCheckInsAvailable = functions.https.onCall((data, context) => {
     return eventFunctions.areCheckInsAvailable(data, context);
 });
@@ -105,11 +124,23 @@ export const updateEventViews = functions.https.onCall((data, context) => {
     return eventFunctions.updateEventViews(data, context);
 });
 
+//** calendar */
+export const getUserCalendarEvents = functions.https.onCall((data, context) => {
+    return calendarFunctions.getUserCalendarEvents(data, context);
+});
+
 export const convertRadiusToDouble = functions
 .firestore
 .document('recurring_events/{event}')
 .onCreate(event => {
  return eventFunctions.convertRadiusToDouble(event);
+});
+
+export const validateEventGeoData = functions
+.firestore
+.document('upcoming_events/{event}')
+.onCreate(event => {
+ return eventFunctions.validateGeoData(event);
 });
 
 //** communities */
@@ -145,6 +176,10 @@ export const updateCommunityMembers = functions.https.onCall((data, context) => 
     return communityFunctions.updateCommunityMembers(data, context);
 });
 
+export const joinCommunity = functions.https.onCall((data, context) => {
+    return communityFunctions.joinCommunity(data, context);
+});
+
 export const leaveCommunity = functions.https.onCall((data, context) => {
     return communityFunctions.leaveCommunity(data, context);
 });
@@ -158,9 +193,18 @@ export const getUserNewsPostFeed = functions.https.onCall((data, context) => {
     return newPostFunctions.getUserNewsPostFeed(data, context);
 });
 
+export const getNewsFeed = functions.https.onCall((data, context) => {
+    return newPostFunctions.getNewsFeed(data, context);
+});
+
 //** ads */
 export const getNearbyAds = functions.https.onCall((data, context) => {
     return adFunctions.getNearbyAds(data, context);
+});
+
+//** requests */
+export const getCommunityRequests = functions.https.onCall((data, context) => {
+    return communityReqFunctions.getCommunityRequests(data, context);
 });
 
 
@@ -180,47 +224,121 @@ export const denyFriendRequest = functions.https.onCall((data, context) => {
 //**
 //**
 //** 
-//NOTIFICATION EVENTS
-export const sendUserNotification = functions
-.firestore
-.document('user_notifications/{notif}')
-.onCreate(event => {
- return notificationFunctions.sendUserNotification(event);
-});
+//TRIGGER EVENTS
 
-export const sendUserDepositNotification = functions
+//users
+export const createUserTrigger = functions
 .firestore
 .document('webblen_user/{user}')
-.onUpdate(event => {
- return notificationFunctions.userDepositNotification(event);
+.onCreate(async event => {
+    const data = event.data();
+    const objectID = event.id;
+    return algoliaFunctions.ALGOLIA_USERS_INDEX.addObject({...data, objectID});
 });
 
-export const sendCommunityNewsPostNotification = functions
+export const updateUserTrigger = functions
+.firestore
+.document('webblen_user/{user}')
+.onUpdate(async event => {
+    //const data = event.after.data();
+    //const objectID = event.after.id;
+    //await algoliaFunctions.ALGOLIA_USERS_INDEX.saveObject({...data, objectID});
+    return notificationFunctions.userDepositNotification(event);
+});
+
+export const deleteUserTrigger = functions
+.firestore
+.document('webblen_user/{user}')
+.onDelete(async event => {
+    const objectID = event.id;
+    await algoliaFunctions.ALGOLIA_USERS_INDEX.deleteObject(objectID);
+});
+
+//communities
+export const createCommunityTrigger = functions
+.firestore
+.document('locations/{city}/communities/{community}')
+.onCreate(async event => {
+    const data = event.data();
+    const objectID = data!.areaName + "/#" + data!.name;
+    return algoliaFunctions.ALGOLIA_USERS_INDEX.addObject({...data, objectID});
+});
+
+export const updateCommunityTrigger = functions
+.firestore
+.document('locations/{city}/communities/{community}')
+.onUpdate(async event => {
+    const data = event.after.data();
+    const objectID = data!.areaName + "/#" + data!.name;
+    await algoliaFunctions.ALGOLIA_COMMUNITIES_INDEX.saveObject({...data, objectID});
+    return notificationFunctions.userDepositNotification(event);
+});
+
+export const deleteCommunityTrigger = functions
+.firestore
+.document('locations/{city}/communities/{community}')
+.onDelete(async event => {
+    const data = event.data();
+    const objectID = data!.areaName + "/#" + data!.name;
+    await algoliaFunctions.ALGOLIA_COMMUNITIES_INDEX.deleteObject(objectID);
+});
+
+//events
+export const createEventTrigger = functions
+.firestore
+.document('upcoming_events/{eventPost}')
+.onCreate(async event => {
+    const data = event.data();
+    const objectID = event.id;
+    await algoliaFunctions.ALGOLIA_EVENTS_INDEX.addObject({...data, objectID});
+    return notificationFunctions.sendNewCommunityEventNotification(event);
+});
+
+export const deleteEventTrigger = functions
+.firestore
+.document('upcoming_events/{eventPost}')
+.onDelete(async event => {
+    const objectID = event.id;
+    return algoliaFunctions.ALGOLIA_EVENTS_INDEX.deleteObject(objectID);
+});
+
+//news posts
+export const createNewsPostTrigger = functions
 .firestore
 .document('community_news/{post}')
 .onCreate(event => {
  return notificationFunctions.sendNewCommunityPostNotif(event);
 });
 
-export const sendCommunityPostCommentNotification = functions
+export const createPostCommentTrigger = functions
 .firestore
 .document('comments/{comment}')
 .onCreate(event => {
  return notificationFunctions.sendCommunityPostCommentNotification(event);
 });
 
-export const sendNewCommunityEventNotification = functions
+//chats
+export const updateChatTrigger = functions
 .firestore
-.document('events/{eventPost}')
-.onCreate(event => {
- return notificationFunctions.sendNewCommunityEventNotification(event);
-});
-
-export const sendMessageReceivedNotification = functions
-.firestore
-.document('chats/{channel}')
+.document('chats/{chat}')
 .onUpdate(event => {
  return notificationFunctions.sendMessageReceivedNotification(event);
+});
+
+//transactions
+export const updateTransactionTrigger = functions
+.firestore
+.document('transactions/{transaction}')
+.onUpdate(event => {
+ return transactionFunctions.sendTransactionRefNotif(event);
+});
+
+//notifications
+export const createNotificationTrigger = functions
+.firestore
+.document('user_notifications/{notif}')
+.onCreate(event => {
+ return notificationFunctions.sendUserNotification(event);
 });
 
 //**
@@ -243,11 +361,12 @@ export const setWeeklyCheckInsAmerciaChicago = functions
     return jobFunctions.setWeeklyCheckInsAmericaChicago(event);
 });
 
-export const distrubeEventPoints = functions
+export const distributeEventPoints = functions
 .pubsub 
 .schedule('every 3 hours')
 .timeZone('America/Chicago')
 .onRun(event => {
+
     return jobFunctions.distributeEventPoints(event);
 });
 
@@ -257,6 +376,22 @@ export const addViewsToEvents = functions
 .timeZone('America/Chicago')
 .onRun(event => {
     return eventFunctions.addViewsToEvents(event);
+});
+
+export const sendNotifForNoonAppOpens = functions
+.pubsub    
+.schedule('every day 13:30')
+.timeZone('America/Chicago')
+.onRun(event => {
+    return userFunctions.sendDailyNotification(event);
+});
+
+export const sendNotifEveningAppOpens = functions
+.pubsub    
+.schedule('every day 18:00')
+.timeZone('America/Chicago')
+.onRun(event => {
+    return userFunctions.sendDailyEveningNotification(event);
 });
 
 export const deleteOldNotifications = functions
@@ -274,6 +409,14 @@ export const rechargeUserAP = functions
 .onRun(event => {
     return scheduleUserFunctions.rechargeUserAP(event);
 });
+
+// export const scrapeMidwestEvents = functions
+// .pubsub    
+// .schedule('every 2 minutes')
+// .timeZone('America/Chicago')
+// .onRun(event => {
+//     return eventScrapeFunctions.scrapeEventsInMidwest(event);
+// });
 
 // export const setEventRecommendations = functions
 // .pubsub 
@@ -299,3 +442,79 @@ export const rechargeUserAP = functions
 // .onCreate(event => {
 //     return communityFunctions.
 // });
+
+//** EXPORT DATA TO ALGOLIA */
+// export const exportAppInfoToAlgolia = functions.https.onRequest(async (req, res) => {
+//     const infoArr = []; 
+//     const appDoc = await admin.firestore().collection('app_release_info').doc('general').get();
+//     const collectionToExport = appDoc.data()!.collectionToExport;
+
+//     const query = await admin.firestore().collection(collectionToExport).get();
+//     for (const doc of query.docs){
+//         const event = doc.data();
+//         event.objectID = doc.id;
+//         infoArr.push(event);
+//     }
+
+//     const algoliaClient = algoliasearch(algoliaKeys.ALGOLIA_APP_ID, algoliaKeys.ALGOLIA_API_KEY);
+//     const index = algoliaClient.initIndex(collectionToExport);
+
+//     index.saveObjects(infoArr, (err, content) => {
+//         res.status(200).send(content)
+//     })
+// });
+
+// export const exportAppInfoToAlgolia = functions.https.onRequest(async (req, res) => {
+//     const comArr = []; 
+//     const eventArr = []; 
+//     const userArr = []; 
+    
+//     //EXPORT COMMUNITIES
+//     const locQuery = await admin.firestore().collection('locations').get();
+//     for (const doc of locQuery.docs){
+//         const areaName = doc.id;
+//         const areaQuery = await admin.firestore().collection('locations').doc(areaName).collection('communities').get();
+//         for (const comDoc of areaQuery.docs){
+//             const data = comDoc.data();
+//             if (data.memberIDs !== undefined && data.memberIDs.length >= 3){
+//                 data.objectID = data.areaName + "/" + data.name;
+//                 comArr.push(data);
+//             }
+//         }
+//     }
+    
+//     await algoliaFunctions.ALGOLIA_COMMUNITIES_INDEX.saveObjects(comArr)
+
+//     //EXPORT EVENTS
+//     const eventQuery = await admin.firestore().collection('upcoming_events').get();
+//     for (const doc of eventQuery.docs){
+//         const data = doc.data();
+//         data.objectID = doc.id;
+//         eventArr.push(data);
+//     }
+//     await algoliaFunctions.ALGOLIA_EVENTS_INDEX.saveObjects(eventArr)
+
+//     //EXPORT USERS
+//     const userQuery = await admin.firestore().collection('webblen_user').get();
+//     for (const doc of userQuery.docs){
+//         const data = doc.data();
+//         data.objectID = doc.id;
+//         userArr.push(data);
+//     }
+//     algoliaFunctions.ALGOLIA_USERS_INDEX.saveObjects(userArr, (err, content) => {
+//         res.status(200).send(content)
+//     })
+// });
+
+//** DEPOSIT WEBBLEN TO WALLETS */ //https://us-central1-webblen-events.cloudfunctions.net/depositWebblenToUserWallets
+export const depositWebblenToUserWallets = functions.https.onRequest(async (req, res) => {
+    const userQuery = await admin.firestore().collection('webblen_user').get();
+    for (const userDoc of userQuery.docs){
+        const userData = userDoc.data();
+        const userWebblen = userData.d.eventPoints;
+        const newWalletAmount = userWebblen + 49.99;
+        await admin.firestore().collection('webblen_user').doc(userDoc.id).update({
+            "d.eventPoints": newWalletAmount
+        });
+    }
+});

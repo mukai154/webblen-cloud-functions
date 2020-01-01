@@ -7,14 +7,20 @@ export async function sendUserNotification(event: any){
 
     console.log("sendUserNotification Started...");
     
-    const messageTokens = event.data().messageToken;
+    const messageTokens = [];
+    const uid = event.data().uid;
+    const userDoc = await userRef.doc(uid).get();
+    const token = userDoc.data()!.d.messageToken;
+    const notifyFriendRequests = userDoc.data()!.d.notifyFriendRequests;
+    console.log(token);
+    console.log(uid);
+    messageTokens.push(token);
     let notifTitle = "";
     const notifDesc = event.data().notificationDescription;
     const notifType = event.data().notificationType;
-    const notifData = event.data().notifData;
+    //const notifData = event.data().notifData;
     const notifKey = event.data().notifKey;
     
-    const uid = event.data().uid;
 
     console.log("sending user notification to:" + messageTokens);
 
@@ -24,6 +30,14 @@ export async function sendUserNotification(event: any){
         notifTitle = "Community Disbanded";
     } else if (notifType === "invite"){
         notifTitle = "New Community Invite!";
+        notifTitle = event.data().notificationTitle;
+        if (event.data().notificationExpDate === null){
+            const notifExp = new Date().getTime() + 1209600000;
+            await admin.firestore().doc("user_notifications/" + notifKey).update({
+                notificationExpDate: notifExp
+            });
+        }
+    } else if (notifType === "eventShare"){
         notifTitle = event.data().notificationTitle;
         if (event.data().notificationExpDate === null){
             const notifExp = new Date().getTime() + 1209600000;
@@ -53,25 +67,24 @@ export async function sendUserNotification(event: any){
         },
         data: {
             "TYPE": 'notification',
-            "DATA": notifData
+            "DATA": ''
         }
     };
-
-    await messagingAdmin.sendToDevice(messageTokens, payload);
-
+    
+    if (!notifyFriendRequests && notifType === "friendRequest"){
+        return
+    } else {
+        await messagingAdmin.sendToDevice(messageTokens, payload);
+    }
 }
 
 export async function userDepositNotification(event: any){
-
-    console.log("userDepositNotification Started...");
 
     const prevUserData = event.before.data().d;
     const newUserData = event.after.data().d;
 
     const messageToken = newUserData.messageToken;
-
-    console.log("tokens: " + messageToken);
-    
+    const notifyDeposits = newUserData.notifyWalletDeposits;    
 
     const prevPoints = prevUserData.eventPoints;
     const newPoints = newUserData.eventPoints;
@@ -94,8 +107,10 @@ export async function userDepositNotification(event: any){
         }
     };
     
-    await messagingAdmin.sendToDevice(messageToken, payload);
-
+    if (notifyDeposits){
+        await messagingAdmin.sendToDevice(messageToken, payload);
+    }
+    
     const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
     const notifExp = new Date().getTime() + 1209600000;
     return admin.firestore().doc("user_notifications/" + notifKey).create({
@@ -122,12 +137,12 @@ export async function sendNewCommunityPostNotif(event: any){
     const authorUsername = postData.author;
     const comAreaName = postData.areaName;
     const comName = postData.communityName;
-    const comDocRef = 'available_locations/' + comAreaName + '/communities/' + comName;
+    const comDocRef = 'locations/' + comAreaName + '/communities/' + comName;
      
     const comDoc = await admin.firestore().doc(comDocRef).get();
     const comDocData = comDoc.data()!;
 
-    const members = comDocData.members;
+    const members = comDocData.memberIDs;
     const followers = comDocData.followers;
 
     for (const uid in members){
@@ -218,7 +233,7 @@ export async function sendNewCommunityEventNotification(event: any){
     const comDoc = await admin.firestore().doc(comDocRef).get();
     const comDocData = comDoc.data()!;
 
-    const members = comDocData.members;
+    const members = comDocData.memberIDs;
     const followers = comDocData.followers;
 
     for (const uid in members){
@@ -226,8 +241,10 @@ export async function sendNewCommunityEventNotification(event: any){
         const userDocData = userDoc.data()!.d;
         if (userDocData && uid !== authorUid){
             const userToken = userDocData.messageToken;
-            if (userToken){
-                messageTokens.push(userToken);
+            if ((userToken !== undefined && userToken !== null) && userToken.length > 0){
+                if (!messageTokens.includes(userToken)){
+                    messageTokens.push(userToken);
+                }
                 const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
                 const notifExp = new Date().getTime() + 1209600000;
                 await admin.firestore().doc("user_notifications/" + notifKey).create({
@@ -253,8 +270,10 @@ export async function sendNewCommunityEventNotification(event: any){
         const userDocData = userDoc.data()!.d;
         if (userDocData && uid !== authorUid){
             const userToken = userDocData.messageToken;
-            if (userToken && !messageTokens.includes(userToken)){
-                messageTokens.push(userToken);
+            if ((userToken !== undefined && userToken !== null) && userToken.length > 0){
+                if (!messageTokens.includes(userToken)){
+                    messageTokens.push(userToken);
+                }
                 const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
                 const notifExp = new Date().getTime() + 1209600000;
                 await admin.firestore().doc("user_notifications/" + notifKey).create({
@@ -464,31 +483,33 @@ export async function sendCommunityPostCommentNotification(event: any){
 
 export async function sendMessageReceivedNotification(event: any){
 
-    console.log("sendMessageReceivedNotification Started...");
     const messageTokens: any[] = [];
-
+    let notificationBody = '';
     const chatChannel = event.after.data();
     const lastMessagePreview = chatChannel.lastMessagePreview;
     const lastMessageSentBy = chatChannel.lastMessageSentBy;
-    const usersInChat = chatChannel.usernames;
-    const receivingUsername = usersInChat.find((username: any) => {
-        return username !== lastMessageSentBy;
-    });
+    const usersInChat = chatChannel.users;
+    const lastMessageType = chatChannel.lastMessageType;
     
+    for (const uid of usersInChat){
+        const userDoc = await userRef.doc(uid).get();
+        const userDocData = userDoc.data()!.d;
+        const userToken = userDocData.messageToken;
+        const username = userDocData.username;
+        
+        if (lastMessageSentBy !== username){
+            messageTokens.push(userToken);
+        }
+    }
+
     const notificationTitle = 'New Message from @' + lastMessageSentBy;
-    const notificationBody = lastMessagePreview;
+    if (lastMessageType === 'image'){
+        notificationBody = 'Image';
+    } else if (lastMessageType === 'text'){
+        notificationBody = lastMessagePreview;
+    }
+    
 
-
-
-    const userSnapshots = await userRef.where('d.username', '==', receivingUsername).get();
-    const userDoc = userSnapshots.docs[0];
-    const userDocData = userDoc.data().d;
-    const userToken = userDocData.messageToken;
-    messageTokens.push(userToken);
-    const receivingUID = userDocData.uid;
-    const messageNotificationCount = userDocData.messageNotificationCount + 1;
-    const notificationCount = userDocData.notificationCount + messageNotificationCount;
-   
     const payload = {
         notification: {
           title: notificationTitle,
@@ -502,9 +523,8 @@ export async function sendMessageReceivedNotification(event: any){
     };
 
     await messagingAdmin.sendToDevice(messageTokens, payload);
+    return;
 
-    return userRef.doc(receivingUID).update({
-        'd.messageNotificationCount': messageNotificationCount,
-        'd.notificationCount': notificationCount
-    });
 }
+
+

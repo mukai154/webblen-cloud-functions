@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin'
 import * as geo from 'geofirestore'
+
 const database = admin.firestore();
 const geofirestore = new geo.GeoFirestore(database);
 const userRef = admin.firestore().collection('webblen_user');
@@ -14,10 +15,26 @@ const pastEventsRef = database.collection('past_events');
 //** 
 //CREATE
 
+
 //**
 //**
 //** 
 //READ
+export async function getEventByKey(data: any, context: any){
+    let event = undefined;
+    const eventKey = data.eventKey;
+    let eventDoc = await upcomingEventsRef.doc(eventKey).get();
+    if (eventDoc.exists){
+        event = eventDoc.data()!.d;
+    } else {
+        eventDoc = await pastEventsRef.doc(eventKey).get();
+        if (eventDoc.exists){
+            event = eventDoc.data()!.d;
+        }
+    }
+    return event
+}
+
 export async function getUserEventHistory(data: any, context: any){
     const events = [];
     const uid = data.uid;
@@ -28,6 +45,36 @@ export async function getUserEventHistory(data: any, context: any){
         const eventDoc = await pastEventsRef.doc(evID).get();
         if (eventDoc.exists){
             events.push(eventDoc.data()!.d);
+        }
+    }
+    return events
+}
+
+export async function getCreatedEvents(data: any, context: any){
+    const events = [];
+    const uid = data.uid;
+    const upcomingEvQuery = await upcomingEventsRef.where("authorUid", "==", uid).get();
+    const pastEvQuery = await pastEventsRef.where("authorUid", "==", uid).get();
+    for (const eventDoc of upcomingEvQuery.docs){
+        events.push(eventDoc.data().d);
+    }
+    for (const eventDoc of pastEvQuery.docs){
+        events.push(eventDoc.data().d);
+    }
+    return events
+}
+
+export async function getSavedEvents(data: any, context: any){
+    const events = [];
+    const uid = data.uid;
+    const userDoc = await userRef.doc(uid).get();
+    const userData = userDoc.data()!.d;
+    if (userData.savedEvents !== undefined){
+        const savedEvents = userData.savedEvents;
+        for (const eventKey of savedEvents){
+           const eventSnapshot = await upcomingEventsRef.doc(eventKey).get();
+           const eventData = eventSnapshot.data()!.d; 
+           events.push(eventData);
         }
     }
     return events
@@ -106,7 +153,7 @@ export async function getNearbyEventsHappeningNow(data: any, context: any){
     const events = [];
     const currentDateInMilliseconds = Date.now();
     const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
-    const query = await upcomingEventsGeoRef.near({center: geoPoint, radius: 15}).get();
+    const query = await upcomingEventsGeoRef.near({center: geoPoint, radius: 5}).get();
     for (const doc of query.docs){
         if (doc.data().endDateInMilliseconds >= currentDateInMilliseconds 
             && doc.data().startDateInMilliseconds <= currentDateInMilliseconds){
@@ -114,6 +161,26 @@ export async function getNearbyEventsHappeningNow(data: any, context: any){
         }
     }
     return events;
+}
+
+export async function validateGeoData(event: any){
+    const eventData = event.data();
+    const isScrapped = eventData.isScrapped;
+    if (isScrapped){
+        const eventKey = eventData.d.eventKey;
+        const eventLocation = eventData.l;
+        const eventLat = eventLocation[0];
+        const eventLon = eventLocation[1];
+        const eventGeopoint = new admin.firestore.GeoPoint(eventLat, eventLon);
+        const newEventLocData = {'geohash': '', 'geopoint': eventGeopoint}
+        
+        await upcomingEventsRef.doc(eventKey).update({
+            'd.location': newEventLocData,
+            'l': eventGeopoint
+        });
+    }
+    
+    return;
 }
 
 export async function getUpcomingCommunityEvents(data: any, context: any){
@@ -126,6 +193,36 @@ export async function getUpcomingCommunityEvents(data: any, context: any){
         comEvents.push(eventDoc.data().d);
     }
     return comEvents;
+}
+
+export async function getRecommendedEvents(data: any, context: any){
+    const events = [];
+    const uid = data.uid;
+    const userQuery = await userRef.doc(uid).get();
+    const userData = userQuery.data()!.d;
+    const recommendedEvents = userData.recommendedEvents;
+    if (recommendedEvents !== undefined && recommendedEvents.length > 0){
+        for (const eventKey of recommendedEvents){
+         const eventDoc = await upcomingEventsRef.doc(eventKey).get();  
+         if (eventDoc.exists){
+            events.push(eventDoc.data()!.d); 
+         }
+        }
+    } else {
+        let x = 0;
+        const eventQuery = await upcomingEventsRef
+        .where('d.communityAreaName', '==', data.areaName)
+        .get();
+        for (const eventDoc of eventQuery.docs){
+            x += 1;
+            if (x === 9){
+                break;
+            }
+            events.push(eventDoc.data().d);
+        }
+    }
+
+    return events;
 }
 
 export async function getRecurringCommunityEvents(data: any, context: any){

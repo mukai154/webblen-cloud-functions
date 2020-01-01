@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin'
 const database = admin.firestore();
 const newPostsRef = database.collection('community_news');
+const locRef = database.collection('locations');
 // const pastEventsRef = database.collection('past_events');
 
 
@@ -47,6 +48,30 @@ export async function getUserNewsPostFeed(data: any, context: any){
         }
     }
     console.log(posts);
+    return posts;
+}
+
+export async function getNewsFeed(data: any, context: any){
+    const posts = [];
+    const locations = [];
+    const locQuery = await locRef.get();
+    for (const locDoc of locQuery.docs){
+        locations.push(locDoc.id);
+    }
+    for (const loc of locations){
+        const comQuery = await locRef.doc(loc).collection('communities').where('memberIDs', 'array-contains', data.uid).get();
+        for (const comDoc of comQuery.docs){
+            const comData = comDoc.data();
+            const postQuery = await newPostsRef
+            .where('areaName', '==', comData.areaName)
+            .where('communityName', '==', comData.name)
+            .get();
+            for (const postDoc of postQuery.docs){
+                console.log(postDoc.data());
+                posts.push(postDoc.data());
+            }
+        }
+    }
     return posts;
 }
 
