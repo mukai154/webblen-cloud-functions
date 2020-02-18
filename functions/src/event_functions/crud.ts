@@ -53,12 +53,22 @@ export async function getUserEventHistory(data: any, context: any){
 export async function getCreatedEvents(data: any, context: any){
     const events = [];
     const uid = data.uid;
-    const upcomingEvQuery = await upcomingEventsRef.where("authorUid", "==", uid).get();
-    const pastEvQuery = await pastEventsRef.where("authorUid", "==", uid).get();
+    const upcomingEvQuery = await upcomingEventsRef.where("d.authorUid", "==", uid).get();
+    const pastEvQuery = await pastEventsRef.where("d.authorUid", "==", uid).get();
     for (const eventDoc of upcomingEvQuery.docs){
         events.push(eventDoc.data().d);
     }
     for (const eventDoc of pastEvQuery.docs){
+        events.push(eventDoc.data().d);
+    }
+    return events
+}
+
+export async function getEventsForTicketScans(data: any, context: any){
+    const events = [];
+    const uid = data.uid;
+    const eventQuery = await upcomingEventsRef.where("d.authorUid", "==", uid).where("d.hasTickets", "==", true).get();
+    for (const eventDoc of eventQuery.docs){
         events.push(eventDoc.data().d);
     }
     return events

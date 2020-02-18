@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions'
 import * as admin from 'firebase-admin'
+//import * as apiRequest from 'request'
 
 admin.initializeApp(functions.config().firebase);
 
@@ -16,6 +17,8 @@ import * as jobFunctions from './scheduled_event_functions/index'
 import * as transactionFunctions from './transaction_functions/index'
 import * as algoliaFunctions from './algolia/keys'
 import * as calendarFunctions from './calendar_functions/crud'
+import * as stripeFunctions from './stripe_functions/index'
+import * as ticketFunctions from './ticket_functions/crud'
 
 //** users */
 export const getUserByID = functions.https.onCall((data, context) => {
@@ -76,6 +79,10 @@ export const getCreatedEvents = functions.https.onCall((data, context) => {
     return eventFunctions.getCreatedEvents(data, context);
 });
 
+export const getEventsForTicketScans = functions.https.onCall((data, context) => {
+    return eventFunctions.getEventsForTicketScans(data, context);
+});
+
 export const getsSavedEvents = functions.https.onCall((data, context) => {
     return eventFunctions.getSavedEvents(data, context);
 });
@@ -123,6 +130,7 @@ export const checkoutAndUpdateEventPayout = functions.https.onCall((data, contex
 export const updateEventViews = functions.https.onCall((data, context) => {
     return eventFunctions.updateEventViews(data, context);
 });
+
 
 //** calendar */
 export const getUserCalendarEvents = functions.https.onCall((data, context) => {
@@ -301,6 +309,20 @@ export const deleteEventTrigger = functions
     const objectID = event.id;
     return algoliaFunctions.ALGOLIA_EVENTS_INDEX.deleteObject(objectID);
 });
+
+//tickets
+export const getPurchasedTickets = functions.https.onCall((data, context) => {
+    return ticketFunctions.getPurchasedTickets(data, context);
+});
+
+export const getTicketDistro = functions.https.onCall((data, context) => {
+    return ticketFunctions.getTicketDistro(data, context);
+});
+
+export const checkIfTicketIsValid = functions.https.onCall((data, context) => {
+    return ticketFunctions.checkIfTicketIsValid(data, context);
+});
+
 
 //news posts
 export const createNewsPostTrigger = functions
@@ -518,3 +540,101 @@ export const depositWebblenToUserWallets = functions.https.onRequest(async (req,
         });
     }
 });
+
+//** STRIPE */
+export const connectStripeCustomAccount = functions.https.onRequest(async (req, res) => {
+    
+    let stripeUID;
+    //const authCode = req.query.code;
+    const uid = req.query.uid;
+    console.log(uid);
+    
+    const stripe = require('stripe')('sk_live_2g2I4X6pIDNbJGHy5XIXUjKr00IRUj3Ngx');
+    
+    const associatedStripeAcct = await admin.firestore().collection('stripe').doc(uid).get();
+    if (associatedStripeAcct.exists){
+        stripeUID = associatedStripeAcct.data()!.stripeUID;
+    } else {
+        const newStripeAcct = await stripe.accounts.create(
+            {
+              type: 'custom',
+              country: 'US',
+              requested_capabilities: [
+                'card_payments',
+                'transfers',
+              ],
+              settings: {
+                  payouts: {
+                    schedule: {
+                        delay_days: 2,
+                        interval: "weekly",
+                        weekly_anchor: "monday",
+                    }
+                  },
+              }
+            },
+
+          );
+          stripeUID = newStripeAcct.id;
+        await admin.firestore().collection('stripe').doc(uid).set({
+            "stripeUID": stripeUID,
+            "verified": "unverified",
+            "availableBalance": 0.0001,
+            "pendingBalance": 0.0001,
+        });
+    }
+
+    const stripeAccountLinkResponse = await stripe.accountLinks.create(
+        {
+          account: stripeUID,
+          failure_url: 'https://webblen.io/earnings-failed',
+          success_url: 'https://us-central1-webblen-events.cloudfunctions.net/completeStripeCustomeAcctRegistration?uid=' + uid,
+          type: 'custom_account_verification',
+          collect: 'eventually_due',
+        },
+      );
+
+    res.redirect(stripeAccountLinkResponse.url);
+
+  });
+
+
+export const completeStripeCustomeAcctRegistration = functions.https.onRequest(async (req, res) => {
+    const uid = req.query.uid;
+    await admin.firestore().collection('stripe').doc(uid).update({
+        "verified": "pending",
+    });
+    res.redirect('https://webblen.io/earnings-success');
+});
+
+
+export const submitBankingInfoToStripe = functions.https.onCall((data, context) => {
+    return stripeFunctions.submitBankingInfo(data, context);
+});
+
+export const submitCardInfoToStripe = functions.https.onCall((data, context) => {
+    return stripeFunctions.submitCardInfo(data, context);
+});
+
+export const checkAccountVerificationStatus = functions.https.onCall((data, context) => {
+    return stripeFunctions.checkAccountVerificationStatus(data, context);
+});
+
+export const getStripeAccountBalance = functions.https.onCall((data, context) => {
+    return stripeFunctions.getStripeAccountBalance(data, context);
+});
+
+export const performInstantStripePayout = functions.https.onCall((data, context) => {
+    return stripeFunctions.performInstantStripePayout(data, context);
+});
+
+export const submitTicketPurchaseToStripe = functions.https.onCall((data, context) => {
+    return stripeFunctions.submitTicketPurchaseToStripe(data, context);
+});
+
+
+
+// export const chargeUserForTicket = functions.https.onCall((data, context) => {
+//     return stripeFunctions.submitCardInfo(data, context);
+// });
+
