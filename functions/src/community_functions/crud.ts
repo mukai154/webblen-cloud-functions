@@ -1,9 +1,6 @@
 import * as admin from 'firebase-admin'
-import * as geo from 'geofirestore'
 const database = admin.firestore();
 const comRef = database.collection('locations');
-const geofirestore = new geo.GeoFirestore(database);
-const comGeoRef = geofirestore.collection('locations');
 const userRef = database.collection('webblen_user');
 // const pastEventsRef = database.collection('past_events');
 
@@ -49,18 +46,18 @@ export async function getUserCommunities(data: any, context: any){
 }
 
 export async function getNearbyCommunities(data: any, context: any){
-    const communities = [];
-    const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
-    const query = await comGeoRef.near({center: geoPoint, radius: 15}).get();
-    for (const doc of query.docs){
-        const comQuery = await database.collection('locations').doc(doc.id).collection('communities').get();
-        for (const comDoc of comQuery.docs){
-            const comData = comDoc.data();
-            if (comData.communityType === 'public'){
-                communities.push(comData);
-            }
-        }
-    }
+    const communities: any[] = [];
+    // const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
+    // const query = await comGeoRef.near({center: geoPoint, radius: 15}).get();
+    // for (const doc of query.docs){
+    //     const comQuery = await database.collection('locations').doc(doc.id).collection('communities').get();
+    //     for (const comDoc of comQuery.docs){
+    //         const comData = comDoc.data();
+    //         if (comData.communityType === 'public'){
+    //             communities.push(comData);
+    //         }
+    //     }
+    // }
     return communities;
 }
 

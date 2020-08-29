@@ -1,12 +1,9 @@
 import * as admin from 'firebase-admin'
-import * as geo from 'geofirestore'
 
 const database = admin.firestore();
-const geofirestore = new geo.GeoFirestore(database);
 const userRef = admin.firestore().collection('webblen_user');
 //const recurringEventsRef = database.collection('recurring_events');
 const upcomingEventsRef = database.collection('upcoming_events');
-const upcomingEventsGeoRef = geofirestore.collection('upcoming_events');
 const pastEventsRef = database.collection('past_events');
 //const userCalendarRef = database.collection('user_calendars');
 //const pastEventsGeoRef = geofirestore.collection('past_events');
@@ -464,44 +461,44 @@ export async function distributeEventPoints(event: any){
 
 export async function setEventRecommendations(event: any){
   //const messageTokens: any[] = [];
-  const userQuery = await userRef.get();
-  const currentDateTime = Date.now();
+  // const userQuery = await userRef.get();
+  // const currentDateTime = Date.now();
 
-  for (const userDoc of userQuery.docs){
-      const recommendedEvents: string[] = [];
-      const userData = userDoc.data().d;
-      const userLat = userDoc.data().l.latitude;
-      const userLon = userDoc.data().l.longitude;
-      const geoPoint = new admin.firestore.GeoPoint(userLat, userLon);
-      const eventHistoryKeys = userData.eventHistory;
+  // for (const userDoc of userQuery.docs){
+  //     const recommendedEvents: string[] = [];
+  //     const userData = userDoc.data().d;
+  //     const userLat = userDoc.data().l.latitude;
+  //     const userLon = userDoc.data().l.longitude;
+  //     const geoPoint = new admin.firestore.GeoPoint(userLat, userLon);
+  //     const eventHistoryKeys = userData.eventHistory;
 
-      console.log(eventHistoryKeys);
+  //     console.log(eventHistoryKeys);
 
-      for(const eventKey of eventHistoryKeys){
-          const eventDoc = await pastEventsRef.doc(eventKey).get();
-          if (eventDoc.exists){
-            const eventData = eventDoc.data()!.d;
-            const eventEndDateInMilliseconds = eventData.endDateInMilliseconds
-            if ((currentDateTime - eventEndDateInMilliseconds) > 0){
-              const eventTags = eventData.tags;
-              for (const tag of eventTags){
-                const recommendedQuery = await upcomingEventsGeoRef.near({center: geoPoint, radius: 20}).get();
-                for (const recEventDoc of recommendedQuery.docs){
-                  const docID = recEventDoc.id;
-                  if (!recommendedEvents.includes(docID) && recEventDoc.data().tags.includes(tag)){
-                    console.log("reccomending user event: " + docID);
-                    recommendedEvents.push(docID);
-                  }
-                }
-              }
-            }
-          } 
-      }
+  //     for(const eventKey of eventHistoryKeys){
+  //         const eventDoc = await pastEventsRef.doc(eventKey).get();
+  //         if (eventDoc.exists){
+  //           const eventData = eventDoc.data()!.d;
+  //           const eventEndDateInMilliseconds = eventData.endDateInMilliseconds
+  //           if ((currentDateTime - eventEndDateInMilliseconds) > 0){
+  //             const eventTags = eventData.tags;
+  //             for (const tag of eventTags){
+  //               const recommendedQuery = await upcomingEventsGeoRef.near({center: geoPoint, radius: 20}).get();
+  //               for (const recEventDoc of recommendedQuery.docs){
+  //                 const docID = recEventDoc.id;
+  //                 if (!recommendedEvents.includes(docID) && recEventDoc.data().tags.includes(tag)){
+  //                   console.log("reccomending user event: " + docID);
+  //                   recommendedEvents.push(docID);
+  //                 }
+  //               }
+  //             }
+  //           }
+  //         } 
+  //     }
 
-      await userRef.doc(userDoc.id).update({
-        'recommendedEvents': recommendedEvents
-      });
-
+  //     await userRef.doc(userDoc.id).update({
+  //       'recommendedEvents': recommendedEvents
+  //     });
+    return;
   }
 
   // const payload = {
@@ -534,4 +531,3 @@ export async function setEventRecommendations(event: any){
   //     notificationType: 'deposit',
   //     uid: newUserData.uid
   // });
-}

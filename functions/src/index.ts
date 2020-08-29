@@ -1,6 +1,8 @@
 import * as functions from 'firebase-functions'
 import * as admin from 'firebase-admin'
-//import * as apiRequest from 'request'
+import * as corsModule from 'cors';
+const cors = corsModule({origin: true});
+
 
 admin.initializeApp(functions.config().firebase);
 
@@ -19,6 +21,9 @@ import * as algoliaFunctions from './algolia/keys'
 import * as calendarFunctions from './calendar_functions/crud'
 import * as stripeFunctions from './stripe_functions/index'
 import * as ticketFunctions from './ticket_functions/crud'
+import * as stripeWebFunctions from './stripe_functions/web'
+import * as locationFunctions from './location_functions/index'
+import * as sendgridFunctions from './send_grid_functions/index'
 
 //** users */
 export const getUserByID = functions.https.onCall((data, context) => {
@@ -42,17 +47,17 @@ export const getUserProfilePicURL = functions.https.onCall((data, context) => {
 });
 
 
-export const getNearbyUsers = functions.https.onCall((data, context) => {
-    return userFunctions.getNearbyUsers(data, context);
-});
+// export const getNearbyUsers = functions.https.onCall((data, context) => {
+//     return userFunctions.getNearbyUsers(data, context);
+// });
 
-export const getNumberOfNearbyUsers = functions.https.onCall((data, context) => {
-    return userFunctions.getNumberOfNearbyUsers(data, context);
-});
+// export const getNumberOfNearbyUsers = functions.https.onCall((data, context) => {
+//     return userFunctions.getNumberOfNearbyUsers(data, context);
+// });
 
-export const get10RandomUsers = functions.https.onCall((data, context) => {
-    return userFunctions.get10RandomUsers(data, context);
-});
+// export const get10RandomUsers = functions.https.onCall((data, context) => {
+//     return userFunctions.get10RandomUsers(data, context);
+// });
 
 export const updateUserCheckIn = functions.https.onCall((data, context) => {
     return userFunctions.updateUserCheckIn(data, context);
@@ -164,9 +169,9 @@ export const getUserCommunities = functions.https.onCall((data, context) => {
     return communityFunctions.getUserCommunities(data, context);
 });
 
-export const getNearbyCommunities = functions.https.onCall((data, context) => {
-    return communityFunctions.getNearbyCommunities(data, context);
-});
+// export const getNearbyCommunities = functions.https.onCall((data, context) => {
+//     return communityFunctions.getNearbyCommunities(data, context);
+// });
 
 export const inviteUsersToCommunity = functions.https.onCall((data, context) => {
     return communityFunctions.inviteUsersToCommunity(data, context);
@@ -268,7 +273,7 @@ export const createCommunityTrigger = functions
 .document('locations/{city}/communities/{community}')
 .onCreate(async event => {
     const data = event.data();
-    const objectID = data!.areaName + "/#" + data!.name;
+    const objectID = data.areaName + "/#" + data.name;
     return algoliaFunctions.ALGOLIA_USERS_INDEX.addObject({...data, objectID});
 });
 
@@ -277,7 +282,7 @@ export const updateCommunityTrigger = functions
 .document('locations/{city}/communities/{community}')
 .onUpdate(async event => {
     const data = event.after.data();
-    const objectID = data!.areaName + "/#" + data!.name;
+    const objectID = data.areaName + "/#" + data.name;
     await algoliaFunctions.ALGOLIA_COMMUNITIES_INDEX.saveObject({...data, objectID});
     return notificationFunctions.userDepositNotification(event);
 });
@@ -287,7 +292,7 @@ export const deleteCommunityTrigger = functions
 .document('locations/{city}/communities/{community}')
 .onDelete(async event => {
     const data = event.data();
-    const objectID = data!.areaName + "/#" + data!.name;
+    const objectID = data.areaName + "/#" + data.name;
     await algoliaFunctions.ALGOLIA_COMMUNITIES_INDEX.deleteObject(objectID);
 });
 
@@ -300,6 +305,41 @@ export const createEventTrigger = functions
     const objectID = event.id;
     await algoliaFunctions.ALGOLIA_EVENTS_INDEX.addObject({...data, objectID});
     return notificationFunctions.sendNewCommunityEventNotification(event);
+});
+
+
+export const createWebblenEventTrigger = functions
+.firestore
+.document('events/{eventPost}')
+.onCreate(async event => {
+    const data = event.data().d;
+    const objectID = event.id;
+    await eventFunctions.createWebblenEventTrigger(data);
+    await algoliaFunctions.ALGOLIA_WEBLLEN_EVENTS_INDEX.addObject({...data, objectID});
+    return;
+    //return notificationFunctions.sendNewCommunityEventNotification(event);
+});
+
+export const updateWebblenEventTrigger = functions
+.firestore
+.document('events/{eventPost}')
+.onUpdate(async event => {
+    const data = event.after.data().d;
+    const objectID = data.id;
+    console.log('updating ' + objectID);
+    await eventFunctions.createWebblenEventTrigger(data);
+    await algoliaFunctions.ALGOLIA_WEBLLEN_EVENTS_INDEX.saveObject({...data, objectID});
+    return;
+    //return notificationFunctions.sendNewCommunityEventNotification(event);
+});
+
+export const deleteWebblenEventTrigger = functions
+.firestore
+.document('events/{eventPost}')
+.onDelete(async event => {
+    const objectID = event.id;
+    await eventFunctions.createWebblenEventTrigger(event);
+    return algoliaFunctions.ALGOLIA_WEBLLEN_EVENTS_INDEX.deleteObject(objectID);
 });
 
 export const deleteEventTrigger = functions
@@ -400,21 +440,21 @@ export const addViewsToEvents = functions
     return eventFunctions.addViewsToEvents(event);
 });
 
-export const sendNotifForNoonAppOpens = functions
-.pubsub    
-.schedule('every day 13:30')
-.timeZone('America/Chicago')
-.onRun(event => {
-    return userFunctions.sendDailyNotification(event);
-});
+// export const sendNotifForNoonAppOpens = functions
+// .pubsub    
+// .schedule('every day 13:30')
+// .timeZone('America/Chicago')
+// .onRun(event => {
+//     return userFunctions.sendDailyNotification(event);
+// });
 
-export const sendNotifEveningAppOpens = functions
-.pubsub    
-.schedule('every day 18:00')
-.timeZone('America/Chicago')
-.onRun(event => {
-    return userFunctions.sendDailyEveningNotification(event);
-});
+// export const sendNotifEveningAppOpens = functions
+// .pubsub    
+// .schedule('every day 18:00')
+// .timeZone('America/Chicago')
+// .onRun(event => {
+//     return userFunctions.sendDailyEveningNotification(event);
+// });
 
 export const deleteOldNotifications = functions
 .pubsub    
@@ -541,12 +581,21 @@ export const depositWebblenToUserWallets = functions.https.onRequest(async (req,
     }
 });
 
+//** LOCATION FUNCTIONS */
+export const findNearestZipcodes = functions.https.onCall((data, context) => {
+    return locationFunctions.findNearestZipcodes(data, context);
+});
+
+export const reverseGeocodeLatLon = functions.https.onCall((data, context) => {
+    return locationFunctions.reverseGeocodeLatLon(data, context);
+});
+
+
 //** STRIPE */
 export const connectStripeCustomAccount = functions.https.onRequest(async (req, res) => {
-    
     let stripeUID;
     //const authCode = req.query.code;
-    const uid = req.query.uid;
+    const uid = req.query.uid as string;
     console.log(uid);
     
     const stripe = require('stripe')('sk_live_2g2I4X6pIDNbJGHy5XIXUjKr00IRUj3Ngx');
@@ -600,7 +649,7 @@ export const connectStripeCustomAccount = functions.https.onRequest(async (req, 
 
 
 export const completeStripeCustomeAcctRegistration = functions.https.onRequest(async (req, res) => {
-    const uid = req.query.uid;
+    const uid = req.query.uid as string;
     await admin.firestore().collection('stripe').doc(uid).update({
         "verified": "pending",
     });
@@ -632,9 +681,57 @@ export const submitTicketPurchaseToStripe = functions.https.onCall((data, contex
     return stripeFunctions.submitTicketPurchaseToStripe(data, context);
 });
 
+export const testPurchaseTickets = functions.https.onCall((data, context) => {
+    return stripeFunctions.testPurchaseTickets(data, context);
+});
+
+//WEB FUNCTIONS
+export const testWebPurchaseTickets = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        return stripeWebFunctions.testPurchaseTickets(req,res);
+    });
+});
+
+export const liveWebPurchaseTickets = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        return stripeWebFunctions.livePurchaseTickets(req,res);
+    });
+});
+
+export const submitBankingInfoWeb = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        return stripeWebFunctions.submitBankingInfoWeb(req,res);
+    });
+});
+
+export const submitCardInfoWeb = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        return stripeWebFunctions.submitCardInfoWeb(req,res);
+    });
+});
+
+//** EXPORT DATA TO ALGOLIA */
 
 
-// export const chargeUserForTicket = functions.https.onCall((data, context) => {
-//     return stripeFunctions.submitCardInfo(data, context);
+//EMAIL
+// export const sendEmailConfirmation = functions.https.onRequest((req, res) => {
+//     cors(req, res, async () => {
+//         return sendgridFunctions.sendEmailConfirmation(req,res);
+//     });
 // });
-
+export const sendEmailConfirmation = functions.https.onCall((data, res) => {
+    return sendgridFunctions.sendEmailConfirmation(data,res);
+});
+//EXPORT EVENTS
+export const exportEventsToAlgolia = functions.https.onRequest(async (req, res) => {
+    const eventArr = []; 
+    const eventQuery = await admin.firestore().collection('events').get();
+    for (const doc of eventQuery.docs){
+        const data = doc.data();
+        data.objectID = doc.id;
+        eventArr.push(data);
+    }
+    algoliaFunctions.ALGOLIA_EVENTS_INDEX.saveObjects(eventArr, (err, content) => {
+        res.status(200).send(content);
+    });
+});
