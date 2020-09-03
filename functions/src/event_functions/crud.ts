@@ -3,6 +3,7 @@ import * as admin from 'firebase-admin';
 const database = admin.firestore();
 const userRef = admin.firestore().collection('webblen_user');
 const eventsRef = admin.firestore().collection('events');
+
 const recurringEventsRef = database.collection('recurring_events');
 const upcomingEventsRef = database.collection('upcoming_events');
 const pastEventsRef = database.collection('past_events');
@@ -147,16 +148,16 @@ export async function addViewsToEvents(data: any){
 }
 
 export async function getEventsNearLocation(data: any, context: any){
-    const events: any[] = [];
+    // const events: any[] = [];
     // const currentDateInMilliseconds = Date.now();    
     // const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
-    // const query = await upcomingEventsGeoRef.near({center: geoPoint, radius: 15}).get();    
+    // const query = await eventGeoRef.near({center: geoPoint, radius: 15}).get();    
     // for (const doc of query.docs){
-    //     if (doc.data().endDateInMilliseconds >= currentDateInMilliseconds){
+    //     if (doc.data().d.endDateInMilliseconds >= currentDateInMilliseconds){
     //         events.push(doc.data());
     //     }
     // }    
-    return events;
+    // return events;
 }
 
 export async function getExclusiveWebblenEvents(data: any, context: any){
@@ -172,19 +173,19 @@ export async function getExclusiveWebblenEvents(data: any, context: any){
     return comEvents;
 }
 
-export async function getNearbyEventsHappeningNow(data: any, context: any){
-    const events: any[] = [];
-    // const currentDateInMilliseconds = Date.now();
-    // const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
-    // const query = await upcomingEventsGeoRef.near({center: geoPoint, radius: 5}).get();
-    // for (const doc of query.docs){
-    //     if (doc.data().endDateInMilliseconds >= currentDateInMilliseconds 
-    //         && doc.data().startDateInMilliseconds <= currentDateInMilliseconds){
-    //         events.push(doc.data());
-    //     }
-    // }
-    return events;
-}
+// export async function getActiveEventsNearLocation(data: any, context: any){
+//     const events: any[] = [];
+//     const currentDateInMilliseconds = Date.now();
+//     const geoPoint = new admin.firestore.GeoPoint(data.lat, data.lon);
+//     const query = await eventGeoRef.near({center: geoPoint, radius: 5}).get();
+//     for (const doc of query.docs){
+//         if (doc.data().d.endDateTimeInMilliseconds >= currentDateInMilliseconds 
+//             && doc.data().d.startDateTimeInMilliseconds <= currentDateInMilliseconds){
+//             events.push(doc.data());
+//         }
+//     }
+//     return events;
+// }
 
 export async function validateGeoData(event: any){
     const eventData = event.data();
@@ -332,7 +333,7 @@ export async function updateEventViews(data: any, context: any){
 
 export async function checkInAndUpdateEventPayout(data: any, context: any){
     let attendees = [];
-    const eventDocRef = await upcomingEventsRef.doc(data.eventID);
+    const eventDocRef = await eventsRef.doc(data.eventID);
     const eventDoc = await eventDocRef.get();
     const eventData = eventDoc.data()!.d;
     let eventValue = eventData.eventPayout;
@@ -364,7 +365,7 @@ export async function checkInAndUpdateEventPayout(data: any, context: any){
 }
 
 export async function checkoutAndUpdateEventPayout(data: any, context: any){
-    const eventDocRef = await upcomingEventsRef.doc(data.eventID);
+    const eventDocRef = await eventsRef.doc(data.eventID);
     const eventDoc = await eventDocRef.get();
     const eventData = eventDoc.data()!.d;
     const attendees = eventData.attendees;
@@ -374,7 +375,7 @@ export async function checkoutAndUpdateEventPayout(data: any, context: any){
     attendees.splice(checkoutIndex);
     console.log('new att: ' + attendees.toString());
     
-    let newEventValue = 0;
+    let newEventValue = 0.0001;
     if (attendees.length > 0){
         for (const uid of attendees){
             const userDoc = await userRef.doc(uid).get();

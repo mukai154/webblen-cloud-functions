@@ -100,6 +100,10 @@ export const getEventsNearLocation = functions.https.onCall((data, context) => {
     return eventFunctions.getEventsNearLocation(data, context);
 });
 
+// export const getActiveEventsNearLocation = functions.https.onCall((data, context) => {
+//     return eventFunctions.getActiveEventsNearLocation(data, context);
+// });
+
 export const getEventsForCheckIn = functions.https.onCall((data, context) => {
     return eventFunctions.getEventsForCheckIn(data, context);
 });
