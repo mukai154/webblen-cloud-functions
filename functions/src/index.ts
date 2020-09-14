@@ -253,9 +253,9 @@ export const updateUserTrigger = functions
 .firestore
 .document('webblen_user/{user}')
 .onUpdate(async event => {
-    //const data = event.after.data();
-    //const objectID = event.after.id;
-    //await algoliaFunctions.ALGOLIA_USERS_INDEX.saveObject({...data, objectID});
+    const data = event.after.data();
+    const objectID = event.after.id;
+    await algoliaFunctions.ALGOLIA_USERS_INDEX.saveObject({...data, objectID});
     return notificationFunctions.userDepositNotification(event);
 });
 
@@ -340,6 +340,18 @@ export const deleteWebblenEventTrigger = functions
     const objectID = event.id;
     await eventFunctions.createWebblenEventTrigger(event);
     return algoliaFunctions.ALGOLIA_WEBLLEN_EVENTS_INDEX.deleteObject(objectID);
+});
+
+export const createScrapedEventTrigger = functions
+.firestore
+.document('scraped_events/{eventPost}')
+.onCreate(async event => {
+    const data = event.data();
+    const objectID = event.id;
+    await eventFunctions.createScrapedEventTrigger(data);
+    await algoliaFunctions.ALGOLIA_WEBLLEN_EVENTS_INDEX.addObject({...data, objectID});
+    return;
+    //return notificationFunctions.sendNewCommunityEventNotification(event);
 });
 
 export const deleteEventTrigger = functions
@@ -731,7 +743,7 @@ export const exportEventsToAlgolia = functions.https.onRequest(async (req, res) 
         data.objectID = doc.id;
         eventArr.push(data);
     }
-    algoliaFunctions.ALGOLIA_EVENTS_INDEX.saveObjects(eventArr, (err, content) => {
-        res.status(200).send(content);
-    });
+    // algoliaFunctions.ALGOLIA_EVENTS_INDEX.saveObjects(eventArr, (err, content) => {
+    //     res.status(200).send(content);
+    // });
 });
