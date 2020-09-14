@@ -1,4 +1,6 @@
 import * as admin from 'firebase-admin';
+import { getNearbyZipcodes, getInfoFromAddress } from '../location_functions';
+// import { testLab } from 'firebase-functions';
 
 const messagingAdmin = admin.messaging();
 const database = admin.firestore();
@@ -16,6 +18,7 @@ const pastEventsRef = database.collection('past_events');
 //CREATE
 export async function createWebblenEventTrigger(data: any){
     const messageTokens: any[] = [];
+    console.log('create webblen event trigger...');
     const event = data;
     const eventID = event.id;
     const eventLat = event.lat;
@@ -72,6 +75,172 @@ export async function createWebblenEventTrigger(data: any){
     await messagingAdmin.sendToDevice(messageTokens, payload).catch(function onError(error:any) {
         console.log(error);
       });;
+    return;
+}
+
+function getMonthNum(month: string): number {
+    if (month === 'Jan' || month === 'January') {
+      return 0;
+    } else if (month === 'Feb' || month === 'February') {
+      return 1;
+    } else if (month === 'Mar' || month === 'March') {
+      return 2;
+    } else if (month === 'Apr' || month === 'April') {
+      return 3;
+    } else if (month === 'May') {
+      return 4;
+    } else if (month === 'Jun' || month === 'June') {
+      return 5;
+    } else if (month === 'Jul' || month === 'July') {
+      return 6;
+    } else if (month === 'Aug' || month === 'August') {
+      return 7;
+    } else if (month === 'Sep' || month === 'Sept' ||  month === 'September') {
+      return 8;
+    } else if (month === 'Oct' || month === 'October') {
+      return 9;
+    } else if (month === 'Nov' || month === 'November') {
+      return 10;
+    } else if (month === 'Dec' || month === 'December') {
+      return 11;
+    } else {
+      return 0;
+    }
+  }
+
+function getTimeFromDateInMilliseconds(startDate: string, startTime: String) {
+    const splitDate = startDate.split(/[ ,]+/);
+  
+    let newDate = new Date();
+  
+    const splitTime = startTime.split(/[: ]+/);
+
+    let h = Number(splitTime[0]);
+    if (h === 12 && (splitTime[2] === 'AM' || splitTime[2] === 'am')) {
+      h = 0;
+    } else if (h === 12 && (splitTime[2] === 'PM' || splitTime[2] === 'pm')) {
+      h = 12;
+    } else if (splitTime[2] === 'PM' || splitTime[2] === 'pm') {
+      h += 12;
+    } else {
+      h = h;
+    }
+  
+    const m = Number(splitTime[1]);
+    
+    if (splitDate.length === 4) {
+      newDate.setDate(Number(splitDate[2]));
+      newDate.setMonth(getMonthNum(splitDate[1]));
+      newDate.setFullYear(Number(splitDate[3]));
+    }
+    if (splitDate.length === 3) {
+      newDate.setDate(Number(splitDate[1]));
+      newDate.setMonth(getMonthNum(splitDate[0]));
+      newDate.setFullYear(Number(splitDate[2]));
+    }
+    
+    newDate.setHours((h - 5), m, 0, 0);
+  
+    return newDate.getTime();
+  }
+
+export async function createScrapedEventTrigger(data: any) {
+    console.log('create scraped event trigger...');
+    const scrapedEvent = data;
+
+    console.log(scrapedEvent);
+
+    const scrapedEventId = scrapedEvent.id;
+    const scrapedEventCity = scrapedEvent.city;
+    const scrapedEventAddress = scrapedEvent.address;
+    const scrapedEventDate = scrapedEvent.date;
+    const scrapedEventDesc = scrapedEvent.description;
+    const scrapedEventEndTime = scrapedEvent.end_time;
+    const scrapedEventImageUrl = scrapedEvent.image_url;
+    const scrapedEventStartTime = scrapedEvent.start_time;
+    const scrapedEventState = scrapedEvent.state;
+    const scrapedEventTitle = scrapedEvent.title
+    const scrapedEventUrl = scrapedEvent.url;
+
+    console.log(scrapedEventId);
+    console.log(scrapedEventDesc);
+
+    // -------------------------------- Example locationInfo ----------------------------------
+    // {
+    //     "latitude": 48.8698679,
+    //     "longitude": 2.3072976,
+    //     "country": "France",
+    //     "countryCode": "FR",
+    //     "city": "Paris",
+    //     "zipcode": "75008",
+    //     "streetName": "Champs-Élysées",
+    //     "streetNumber": "29",
+    //     "administrativeLevels": {
+    //       "level1long": "Île-de-France",
+    //       "level1short": "IDF",
+    //       "level2long": "Paris",
+    //       "level2short": "75"
+    //     },
+    //     "provider": "google"
+    //   }
+    // -------------------------------- Example locationInfo ----------------------------------
+
+    const locationInfo = await getInfoFromAddress(scrapedEventAddress);
+    const lat = locationInfo.latitude;
+    const lon = locationInfo.longitude;
+    const zipcode = locationInfo.zipcode;
+
+    const nearbyZipcodes = await getNearbyZipcodes(zipcode);
+
+    const eventFromScrapedEventMap = {
+        'actualTurnout': 0,
+        'attendees': [],
+        'authorId': "EtKiw3gK37QsOg6tPBnSJ8MhCm23",
+        'category': "",
+        'checkInRadius': 10.5,
+        'city': scrapedEventCity,
+        'clicks': 0,
+        'desc': scrapedEventDesc,
+        'digitalEventLink': "",
+        'endDate': scrapedEventDate,
+        'endTime': scrapedEventEndTime,
+        'endDateTimeInMilliseconds': getTimeFromDateInMilliseconds(scrapedEventDate, scrapedEventEndTime),
+        'estimatedTurnout': 0,
+        'eventPayout': 0,
+        'fbUsername': '',
+        'flashEvent': false,
+        'hasTickets': false,
+        'id': scrapedEventId,
+        'imageURL': scrapedEventImageUrl,
+        'instaUsername': '',
+        'lat': lat,
+        'lon': lon,
+        'nearbyZipcodes': nearbyZipcodes,
+        'privacy': 'public',
+        'province': scrapedEventState,
+        'recurrence': 'none',
+        'reported': 'false',
+        'sharedComs': [],
+        'startDate': scrapedEventDate,
+        'startDateTimeInMilliseconds': getTimeFromDateInMilliseconds(scrapedEventDate, scrapedEventStartTime),
+        'startTime': scrapedEventStartTime,
+        'streetAddress': scrapedEventAddress,
+        'tags': [],
+        'timezone': 'CDT',
+        'title': scrapedEventTitle,
+        'twitterUsername': '',
+        'type': 'Other',
+        'venueName': '',
+        'webAppLink': `https://app.webblen.io/#/event?id=${scrapedEventId}`,
+        'website': scrapedEventUrl,
+    }
+    
+    const eventGeoPoint = new admin.firestore.GeoPoint(lat, lon);
+
+    await eventsRef.doc(scrapedEventId).create({
+        'd': eventFromScrapedEventMap,
+        'l': eventGeoPoint,
+    });
     return;
 }
 
