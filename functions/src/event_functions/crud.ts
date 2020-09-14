@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 
+const messagingAdmin = admin.messaging();
 const database = admin.firestore();
 const userRef = admin.firestore().collection('webblen_user');
 const eventsRef = admin.firestore().collection('events');
@@ -14,18 +15,63 @@ const pastEventsRef = database.collection('past_events');
 //** 
 //CREATE
 export async function createWebblenEventTrigger(data: any){
-    console.log('create webblen event trigger...');
+    const messageTokens: any[] = [];
     const event = data;
-    console.log(event);
     const eventID = event.id;
     const eventLat = event.lat;
     const eventLon = event.lon;
-    console.log(eventLat);
-    console.log(eventLon);
     const eventGeoPoint = new admin.firestore.GeoPoint(eventLat, eventLon);
     await eventsRef.doc(eventID).update({
         'l': eventGeoPoint,
     });
+
+    const authorDoc = await userRef.doc(event.authorID).get();
+    console.log(authorDoc);
+    const authorData = authorDoc.data()!.d;
+    const authorUsername = authorData.username;
+    console.log(authorUsername);
+    const authorFollowers = authorData.followers;
+    console.log('Author FOLLOWERS');
+    console.log(authorFollowers);
+    
+    
+    for (const follower of authorFollowers){
+        console.log(follower);
+        const followerDoc = await userRef.doc(follower).get();
+        if (followerDoc.exists){
+            const followerData = followerDoc.data()!.d;
+            const followerID = followerData.uid;
+            const followerToken = followerData.messageToken;
+            if (followerID === 'uMc074hbM8RqhI0kKqXxDpve9iQ2' || followerID === 'EtKiw3gK37QsOg6tPBnSJ8MhCm23'){
+                console.log(followerToken);
+                messageTokens.push(followerToken);
+            }
+        }
+    }
+    
+    console.log(messageTokens);
+    
+    let notifTitle;
+    if (event.isDigitalEvent){
+        notifTitle = "@" + authorUsername + " Scheduled a New Stream"
+    } else {
+        notifTitle = "@" + authorUsername + " Scheduled a New Event" 
+    }
+    const payload = {
+        notification: {
+          title: notifTitle,
+          body: event.title,
+          badge: "1"
+        },
+        data: {
+          TYPE: 'newEvent',
+          DATA: eventID,
+        }
+    };
+
+    await messagingAdmin.sendToDevice(messageTokens, payload).catch(function onError(error:any) {
+        console.log(error);
+      });;
     return;
 }
 

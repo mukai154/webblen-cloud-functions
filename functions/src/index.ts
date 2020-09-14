@@ -9,21 +9,17 @@ admin.initializeApp(functions.config().firebase);
 import * as userFunctions from './user_functions/crud'
 import * as scheduleUserFunctions from './scheduled_user_functions/index'
 import * as eventFunctions from './event_functions/crud'
-import * as communityFunctions from './community_functions/crud'
-import * as adFunctions from './ad_functions/crud'
-import * as newPostFunctions from './news_post_functions/crud'
-import * as communityReqFunctions from './community_request_functions/crud'
 import * as notificationFunctions from './remote_notif_functions/index'
 import * as notifActionFunctions from './notif_action_functions/index'
 import * as jobFunctions from './scheduled_event_functions/index'
 import * as transactionFunctions from './transaction_functions/index'
 import * as algoliaFunctions from './algolia/keys'
-import * as calendarFunctions from './calendar_functions/crud'
 import * as stripeFunctions from './stripe_functions/index'
 import * as ticketFunctions from './ticket_functions/crud'
 import * as stripeWebFunctions from './stripe_functions/web'
 import * as locationFunctions from './location_functions/index'
 import * as sendgridFunctions from './send_grid_functions/index'
+import * as agoraFunctions from './agora/index'
 
 //** users */
 export const getUserByID = functions.https.onCall((data, context) => {
@@ -141,10 +137,6 @@ export const updateEventViews = functions.https.onCall((data, context) => {
 });
 
 
-//** calendar */
-export const getUserCalendarEvents = functions.https.onCall((data, context) => {
-    return calendarFunctions.getUserCalendarEvents(data, context);
-});
 
 export const convertRadiusToDouble = functions
 .firestore
@@ -160,82 +152,9 @@ export const validateEventGeoData = functions
  return eventFunctions.validateGeoData(event);
 });
 
-//** communities */
-export const checkIfCommunityExists = functions.https.onCall((data, context) => {
-    return communityFunctions.checkIfCommunityExists(data, context);
-});
-
-export const getCommunityByName = functions.https.onCall((data, context) => {
-    return communityFunctions.getCommunityByName(data, context);
-});
-
-export const getUserCommunities = functions.https.onCall((data, context) => {
-    return communityFunctions.getUserCommunities(data, context);
-});
-
-// export const getNearbyCommunities = functions.https.onCall((data, context) => {
-//     return communityFunctions.getNearbyCommunities(data, context);
-// });
-
-export const inviteUsersToCommunity = functions.https.onCall((data, context) => {
-    return communityFunctions.inviteUsersToCommunity(data, context);
-});
-
-export const removeInvitedUserFromCommunity = functions.https.onCall((data, context) => {
-    return communityFunctions.removeInvitedUserFromCommunity(data, context);
-});
-
-export const updateCommunityFollowers = functions.https.onCall((data, context) => {
-    return communityFunctions.updateCommunityFollowers(data, context);
-});
-
-export const updateCommunityMembers = functions.https.onCall((data, context) => {
-    return communityFunctions.updateCommunityMembers(data, context);
-});
-
-export const joinCommunity = functions.https.onCall((data, context) => {
-    return communityFunctions.joinCommunity(data, context);
-});
-
-export const leaveCommunity = functions.https.onCall((data, context) => {
-    return communityFunctions.leaveCommunity(data, context);
-});
-
-//** news posts */
-export const getCommunityNewsPosts = functions.https.onCall((data, context) => {
-    return newPostFunctions.getCommunityNewsPosts(data, context);
-});
-
-export const getUserNewsPostFeed = functions.https.onCall((data, context) => {
-    return newPostFunctions.getUserNewsPostFeed(data, context);
-});
-
-export const getNewsFeed = functions.https.onCall((data, context) => {
-    return newPostFunctions.getNewsFeed(data, context);
-});
-
-//** ads */
-export const getNearbyAds = functions.https.onCall((data, context) => {
-    return adFunctions.getNearbyAds(data, context);
-});
-
-//** requests */
-export const getCommunityRequests = functions.https.onCall((data, context) => {
-    return communityReqFunctions.getCommunityRequests(data, context);
-});
-
-
 //** notif actions */
-export const acceptCommunityInvite = functions.https.onCall((data, context) => {
-    return notifActionFunctions.acceptCommunityInvite(data, context);
-});
-
-export const acceptFriendRequest = functions.https.onCall((data, context) => {
-    return notifActionFunctions.acceptFriendRequest(data, context);
-});
-
-export const denyFriendRequest = functions.https.onCall((data, context) => {
-    return notifActionFunctions.denyFriendRequest(data, context);
+export const notifyFollowersStreamIsLive = functions.https.onCall((data) => {
+    return notificationFunctions.notifyFollowersStreamIsLive(data);
 });
 
 //**
@@ -257,10 +176,25 @@ export const updateUserTrigger = functions
 .firestore
 .document('webblen_user/{user}')
 .onUpdate(async event => {
-    //const data = event.after.data();
-    //const objectID = event.after.id;
-    //await algoliaFunctions.ALGOLIA_USERS_INDEX.saveObject({...data, objectID});
-    return notificationFunctions.userDepositNotification(event);
+    const data = event.after.data();
+    const objectID = event.after.id;
+    
+    const prevUserData = event.before.data().d;
+    const newUserData = data.d;  
+
+    const prevPoints = prevUserData.eventPoints;
+    const newPoints = newUserData.eventPoints;
+
+    const prevFollowers = prevUserData.followers;
+    const newFollowers = newUserData.followers;
+
+    if (newPoints > prevPoints){
+        await notificationFunctions.userDepositNotification(event);
+    } else if (newFollowers.length > prevFollowers.length){
+        await notificationFunctions.newFollowerNotification(event);
+    }
+    await algoliaFunctions.ALGOLIA_USERS_INDEX.saveObject({...data, objectID});
+    return;  
 });
 
 export const deleteUserTrigger = functions
@@ -271,47 +205,8 @@ export const deleteUserTrigger = functions
     await algoliaFunctions.ALGOLIA_USERS_INDEX.deleteObject(objectID);
 });
 
-//communities
-export const createCommunityTrigger = functions
-.firestore
-.document('locations/{city}/communities/{community}')
-.onCreate(async event => {
-    const data = event.data();
-    const objectID = data.areaName + "/#" + data.name;
-    return algoliaFunctions.ALGOLIA_USERS_INDEX.addObject({...data, objectID});
-});
-
-export const updateCommunityTrigger = functions
-.firestore
-.document('locations/{city}/communities/{community}')
-.onUpdate(async event => {
-    const data = event.after.data();
-    const objectID = data.areaName + "/#" + data.name;
-    await algoliaFunctions.ALGOLIA_COMMUNITIES_INDEX.saveObject({...data, objectID});
-    return notificationFunctions.userDepositNotification(event);
-});
-
-export const deleteCommunityTrigger = functions
-.firestore
-.document('locations/{city}/communities/{community}')
-.onDelete(async event => {
-    const data = event.data();
-    const objectID = data.areaName + "/#" + data.name;
-    await algoliaFunctions.ALGOLIA_COMMUNITIES_INDEX.deleteObject(objectID);
-});
 
 //events
-export const createEventTrigger = functions
-.firestore
-.document('upcoming_events/{eventPost}')
-.onCreate(async event => {
-    const data = event.data();
-    const objectID = event.id;
-    await algoliaFunctions.ALGOLIA_EVENTS_INDEX.addObject({...data, objectID});
-    return notificationFunctions.sendNewCommunityEventNotification(event);
-});
-
-
 export const createWebblenEventTrigger = functions
 .firestore
 .document('events/{eventPost}')
@@ -367,22 +262,6 @@ export const checkIfTicketIsValid = functions.https.onCall((data, context) => {
     return ticketFunctions.checkIfTicketIsValid(data, context);
 });
 
-
-//news posts
-export const createNewsPostTrigger = functions
-.firestore
-.document('community_news/{post}')
-.onCreate(event => {
- return notificationFunctions.sendNewCommunityPostNotif(event);
-});
-
-export const createPostCommentTrigger = functions
-.firestore
-.document('comments/{comment}')
-.onCreate(event => {
- return notificationFunctions.sendCommunityPostCommentNotification(event);
-});
-
 //chats
 export const updateChatTrigger = functions
 .firestore
@@ -397,14 +276,6 @@ export const updateTransactionTrigger = functions
 .document('transactions/{transaction}')
 .onUpdate(event => {
  return transactionFunctions.sendTransactionRefNotif(event);
-});
-
-//notifications
-export const createNotificationTrigger = functions
-.firestore
-.document('user_notifications/{notif}')
-.onCreate(event => {
- return notificationFunctions.sendUserNotification(event);
 });
 
 //**
@@ -713,6 +584,17 @@ export const submitCardInfoWeb = functions.https.onRequest((req, res) => {
         return stripeWebFunctions.submitCardInfoWeb(req,res);
     });
 });
+
+
+//** AGORA CLOUD RECORDING */
+export const retrieveAgoraToken = functions.https.onCall((data) => {
+    return agoraFunctions.retrieveAgoraToken(data);
+}); 
+
+export const startAgoraCloudRecording = functions.https.onCall((data) => {
+    return agoraFunctions.startAgoraCloudRecording(data);
+}); 
+
 
 //** EXPORT DATA TO ALGOLIA */
 
