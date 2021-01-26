@@ -17,6 +17,7 @@ export async function sendEmailConfirmation(data: any, res: any){
     console.log(sendgridApiKey);
     const sgMail = require('@sendgrid/mail');
     sgMail.setApiKey(sendgridApiKey);
+    
     const msg = {
         to: emailAddress,
         from: 'team@webblen.com',
@@ -25,10 +26,11 @@ export async function sendEmailConfirmation(data: any, res: any){
             event_title: eventTitle,
         },
       };
-      sgMail.send(msg).catch(function onError(error:any) {
+
+    await sgMail.send(msg).catch(function onError(error:any) {
         console.log(error);
       }).catch(function onError(error:any) {
         console.log(error);
       });
-    return sgMail.send(msg);
+    return;
 }

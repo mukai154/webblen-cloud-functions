@@ -150,6 +150,31 @@ export async function checkAccountVerificationStatus(data: any, context: any){
     return requirements;
 }
 
+export async function manuallyAcceptStripeTOS(){
+  
+  const stripeUID = "acct_1HTyKoAYULGROewD"
+
+  //Stripe Info
+  const appInfoDoc = await admin.firestore().collection("app_release_info").doc('stripe').get();
+  const appStripeData = appInfoDoc.data()!;
+  const secretKey = appStripeData.secretKey;
+  const stripe = require('stripe')(secretKey);
+
+  await stripe.accounts.update(
+    stripeUID,
+    {
+      tos_acceptance: {
+        date: Math.floor(Date.now() / 1000),
+        ip: '96.3.213.32', // Assumes you're not using a proxy
+      },
+    }
+  ).catch(function onError(error:any) {
+    console.log(error);
+    status = "error";
+  });
+  return;
+}
+
 export async function submitTicketPurchaseToStripe(data: any, context: any){
   let status = "passed";
   const chargeAmount = data.chargeAmount;

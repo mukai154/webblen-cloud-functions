@@ -18,8 +18,9 @@ const pastEventsRef = database.collection('past_events');
 //CREATE
 export async function createWebblenEventTrigger(data: any){
     const messageTokens: any[] = [];
-    console.log('create webblen event trigger...');
     const event = data;
+    const eventIsStream = event.isDigitalEvent;
+    const privacy = event.privacy;
     const eventID = event.id;
     const eventLat = event.lat;
     const eventLon = event.lon;
@@ -29,52 +30,81 @@ export async function createWebblenEventTrigger(data: any){
     });
 
     const authorDoc = await userRef.doc(event.authorID).get();
-    console.log(authorDoc);
     const authorData = authorDoc.data()!.d;
     const authorUsername = authorData.username;
-    console.log(authorUsername);
     const authorFollowers = authorData.followers;
-    console.log('Author FOLLOWERS');
-    console.log(authorFollowers);
-    
-    
-    for (const follower of authorFollowers){
-        console.log(follower);
-        const followerDoc = await userRef.doc(follower).get();
-        if (followerDoc.exists){
-            const followerData = followerDoc.data()!.d;
-            const followerID = followerData.uid;
-            const followerToken = followerData.messageToken;
-            if (followerID === 'uMc074hbM8RqhI0kKqXxDpve9iQ2' || followerID === 'EtKiw3gK37QsOg6tPBnSJ8MhCm23'){
-                console.log(followerToken);
-                messageTokens.push(followerToken);
+
+    let notificationTitle;
+    if (eventIsStream){
+        notificationTitle = "@" + authorUsername + " Scheduled a New Stream";
+    } else {
+        notificationTitle = "@" + authorUsername + " Scheduled a New Event";
+    }
+
+    if (privacy === "public"){
+        for (const follower of authorFollowers){
+            console.log(follower);
+            const followerDoc = await userRef.doc(follower).get();
+            if (followerDoc.exists){
+                let lastNotificationTimeInMilliseconds;
+                if (followerDoc.data()!.lastNotificationTimeInMilliseconds !== undefined){
+                    lastNotificationTimeInMilliseconds = followerDoc.data()!.lastNotificationTimeInMilliseconds;
+                    const currentDateInMilliseconds = new Date().getTime();
+                    if (currentDateInMilliseconds - 3600000 > lastNotificationTimeInMilliseconds){
+                        const followerData = followerDoc.data()!.d;
+                        const followerID = followerData.uid;
+                        if (followerData.messageToken !== undefined && followerData.messageToken.length > 9){
+                            const followerToken = followerData.messageToken;
+                            messageTokens.push(followerToken);
+                        }
+                        const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
+                        const notifExp = new Date().getTime() + 1209600000;
+                        await admin.firestore().doc("user_notifications/" + notifKey).create({
+                            messageToken: "",
+                            notificationData: eventID,
+                            notificationTitle: notificationTitle,
+                            notificationDescription: '',
+                            notificationExpirationDate: notifExp.toString(),
+                            notificationExpDate: notifExp,
+                            notificationKey: notifKey,
+                            notificationSeen: false,
+                            notificationSender: '',
+                            sponsoredNotification: false,
+                            notificationType: 'event',
+                            uid: followerID
+                        });
+                        await userRef.doc(followerID).update({
+                            "lastNotificationTimeInMilliseconds": currentDateInMilliseconds,
+                        });
+                    }
+                }
             }
         }
-    }
-    
-    console.log(messageTokens);
-    
-    let notifTitle;
-    if (event.isDigitalEvent){
-        notifTitle = "@" + authorUsername + " Scheduled a New Stream"
-    } else {
-        notifTitle = "@" + authorUsername + " Scheduled a New Event" 
-    }
-    const payload = {
-        notification: {
-          title: notifTitle,
-          body: event.title,
-          badge: "1"
-        },
-        data: {
-          TYPE: 'newEvent',
-          DATA: eventID,
+            
+        let notifTitle;
+        if (eventIsStream){
+            notifTitle = "@" + authorUsername + " Scheduled a New Stream"
+        } else {
+            notifTitle = "@" + authorUsername + " Scheduled a New Event" 
         }
-    };
+        
+        const payload = {
+            notification: {
+              title: notifTitle,
+              body: event.title,
+              badge: "1"
+            },
+            data: {
+              TYPE: 'newEvent',
+              DATA: eventID,
+            }
+        };
+    
+        await messagingAdmin.sendToDevice(messageTokens, payload).catch(function onError(error:any) {
+            console.log(error);
+          });;
+    }
 
-    await messagingAdmin.sendToDevice(messageTokens, payload).catch(function onError(error:any) {
-        console.log(error);
-      });;
     return;
 }
 
@@ -111,7 +141,7 @@ function getMonthNum(month: string): number {
 function getTimeFromDateInMilliseconds(startDate: string, startTime: String) {
     const splitDate = startDate.split(/[ ,]+/);
   
-    let newDate = new Date();
+    const newDate = new Date();
   
     const splitTime = startTime.split(/[: ]+/);
 
@@ -161,29 +191,11 @@ export async function createScrapedEventTrigger(data: any) {
     const scrapedEventState = scrapedEvent.state;
     const scrapedEventTitle = scrapedEvent.title
     const scrapedEventUrl = scrapedEvent.url;
+    const scrapedEventCategory = getEventCategoryFromDesc(scrapedEventDesc);
+    const scrapedEventType = getEventTypeFromDesc(scrapedEventDesc);
 
     console.log(scrapedEventId);
     console.log(scrapedEventDesc);
-
-    // -------------------------------- Example locationInfo ----------------------------------
-    // {
-    //     "latitude": 48.8698679,
-    //     "longitude": 2.3072976,
-    //     "country": "France",
-    //     "countryCode": "FR",
-    //     "city": "Paris",
-    //     "zipcode": "75008",
-    //     "streetName": "Champs-Élysées",
-    //     "streetNumber": "29",
-    //     "administrativeLevels": {
-    //       "level1long": "Île-de-France",
-    //       "level1short": "IDF",
-    //       "level2long": "Paris",
-    //       "level2short": "75"
-    //     },
-    //     "provider": "google"
-    //   }
-    // -------------------------------- Example locationInfo ----------------------------------
 
     const locationInfo = await getInfoFromAddress(scrapedEventAddress);
     const lat = locationInfo.latitude;
@@ -193,57 +205,184 @@ export async function createScrapedEventTrigger(data: any) {
     const nearbyZipcodes = await getNearbyZipcodes(zipcode);
 
     const eventFromScrapedEventMap = {
-        'actualTurnout': 0,
-        'attendees': [],
-        'authorId': "EtKiw3gK37QsOg6tPBnSJ8MhCm23",
-        'category': "",
-        'checkInRadius': 10.5,
-        'city': scrapedEventCity,
-        'clicks': 0,
-        'desc': scrapedEventDesc,
-        'digitalEventLink': "",
-        'endDate': scrapedEventDate,
-        'endTime': scrapedEventEndTime,
-        'endDateTimeInMilliseconds': getTimeFromDateInMilliseconds(scrapedEventDate, scrapedEventEndTime),
-        'estimatedTurnout': 0,
-        'eventPayout': 0,
-        'fbUsername': '',
-        'flashEvent': false,
-        'hasTickets': false,
         'id': scrapedEventId,
+        'authorID': "EtKiw3gK37QsOg6tPBnSJ8MhCm23",
+        'hasTickets': false,
+        'flashEvent': false,
+        'isDigitalEvent': false,
+        'digitalEventLink': "",
+        'title': scrapedEventTitle,
+        'desc': scrapedEventDesc,
         'imageURL': scrapedEventImageUrl,
-        'instaUsername': '',
+        'venueName': '',
+        'nearbyZipcodes': nearbyZipcodes,
+        'streetAddress': scrapedEventAddress,
+        'city': scrapedEventCity,
+        'province': scrapedEventState,
         'lat': lat,
         'lon': lon,
-        'nearbyZipcodes': nearbyZipcodes,
-        'privacy': 'public',
-        'province': scrapedEventState,
-        'recurrence': 'none',
-        'reported': 'false',
         'sharedComs': [],
-        'startDate': scrapedEventDate,
-        'startDateTimeInMilliseconds': getTimeFromDateInMilliseconds(scrapedEventDate, scrapedEventStartTime),
-        'startTime': scrapedEventStartTime,
-        'streetAddress': scrapedEventAddress,
         'tags': [],
-        'timezone': 'CDT',
-        'title': scrapedEventTitle,
-        'twitterUsername': '',
-        'type': 'Other',
-        'venueName': '',
-        'webAppLink': `https://app.webblen.io/#/event?id=${scrapedEventId}`,
+        'type': scrapedEventType,
+        'category': scrapedEventCategory,
+        'clicks': 0,
         'website': scrapedEventUrl,
+        'fbUsername': '',
+        'instaUsername': '',
+        'twitterUsername': '',
+        'checkInRadius': 10.5,
+        'estimatedTurnout': 0,
+        'actualTurnout': 0,
+        'attendees': [],
+        'eventPayout': 0.0001,
+        'recurrence': 'none',
+        'startDateTimeInMilliseconds': getTimeFromDateInMilliseconds(scrapedEventDate, scrapedEventStartTime),
+        'endDateTimeInMilliseconds': getTimeFromDateInMilliseconds(scrapedEventDate, scrapedEventEndTime),
+        'startDate': scrapedEventDate,
+        'endDate': scrapedEventDate,
+        'startTime': scrapedEventStartTime,
+        'endTime': scrapedEventEndTime,
+        'timezone': 'CDT',
+        'privacy': 'public',
+        'reported': 'false',
+        'webAppLink': `https://app.webblen.io/#/event?id=${scrapedEventId}`,
+        'savedBy': [],
+        'paidOut': false,
+       
     }
     
     const eventGeoPoint = new admin.firestore.GeoPoint(lat, lon);
 
     await eventsRef.doc(scrapedEventId).create({
         'd': eventFromScrapedEventMap,
+        'g': '',
         'l': eventGeoPoint,
     });
     return;
 }
 
+function getEventCategoryFromDesc(eventDesc: string) {
+    let category = "";
+    const lowercaseDesc = eventDesc.toLowerCase();
+    if (lowercaseDesc.includes("car") || lowercaseDesc.includes("boat") || lowercaseDesc.includes("airplane")){
+        category = "Auto, Boat, & Air";
+    }
+    if (lowercaseDesc.includes("business") || lowercaseDesc.includes("professional") || lowercaseDesc.includes("career") || lowercaseDesc.includes("personal development")){
+        category = "Business/Professional";
+    }
+    if (lowercaseDesc.includes("charity") || lowercaseDesc.includes("donate") || lowercaseDesc.includes("donation")){
+        category = "Charity/Causes";
+    }
+    if (lowercaseDesc.includes("family") || lowercaseDesc.includes("child") || lowercaseDesc.includes("kid")){
+        category = "Family & Education";
+    }
+    if (lowercaseDesc.includes("fashion") || lowercaseDesc.includes("beauty") || lowercaseDesc.includes("modeling")){
+        category = "Fashion & Beauty";
+    }
+    if (lowercaseDesc.includes("film") || lowercaseDesc.includes("movie") || lowercaseDesc.includes("media")){
+        category = "Film, Media, & Entertainment";
+    }
+    if (lowercaseDesc.includes("food") || lowercaseDesc.includes("drink") || lowercaseDesc.includes("meal") || lowercaseDesc.includes("dinner") || lowercaseDesc.includes("lunch") || lowercaseDesc.includes("breakfast")){
+        category = "Food/Drink";
+    }
+    if (lowercaseDesc.includes("government") || lowercaseDesc.includes("politic") || lowercaseDesc.includes("election")){
+        category = "Government/Politics";
+    }
+    if (lowercaseDesc.includes("health") || lowercaseDesc.includes("wellness")){
+        category = "Health & Wellness";
+    }
+    if (lowercaseDesc.includes("lifestyle") || lowercaseDesc.includes("furniture") || lowercaseDesc.includes("home decor")){
+        category = "Home/Lifestyle";
+    }
+    if (lowercaseDesc.includes("music") || lowercaseDesc.includes("concert") || lowercaseDesc.includes("performance")){
+        category = "Music";
+    }
+    if (lowercaseDesc.includes("religion") || lowercaseDesc.includes("religious")){
+        category = "Religion/Spirituality";
+    }
+    if (lowercaseDesc.includes("school")){
+        category = "School Activities";
+    }
+    if (lowercaseDesc.includes("science") || lowercaseDesc.includes("tech")){
+        category = "Science/Technology";
+    }
+    if (lowercaseDesc.includes("christmas") || lowercaseDesc.includes("thanksgiving") || lowercaseDesc.includes("halloween") || lowercaseDesc.includes('holiday') || lowercaseDesc.includes("seasonal")){
+        category = "Seasonal/Holiday";
+    }
+    if (lowercaseDesc.includes("sports") || lowercaseDesc.includes("competition") || lowercaseDesc.includes("championship")){
+        category = "Sports/Fitness";
+    }
+    if (lowercaseDesc.includes("theatre") || lowercaseDesc.includes("visual arts") || lowercaseDesc.includes("exhibit")){
+        category = "Theatre/Visual Arts";
+    }
+    if (lowercaseDesc.includes("travel") || lowercaseDesc.includes("outdoor") || lowercaseDesc.includes("hiking") || lowercaseDesc.includes("running") || lowercaseDesc.includes("biking")){
+        category = "Travel/Outdoor";
+    }
+    if (category === ""){
+        category = "Hobbies/Special Interests";
+    }
+    return category;
+}
+
+function getEventTypeFromDesc(eventDesc: string) {
+    let type = "";
+    const lowercaseDesc = eventDesc.toLowerCase();
+    if (lowercaseDesc.includes("appearance") || lowercaseDesc.includes("signing")){
+        type = "Appearance/Signing";
+    }
+    if (lowercaseDesc.includes("festival") || lowercaseDesc.includes("attraction") || lowercaseDesc.includes("carnival") || lowercaseDesc.includes("fair")){
+        type = "Festival/Fair";
+    }
+    if (lowercaseDesc.includes("camp") || lowercaseDesc.includes("trip") || lowercaseDesc.includes("retreat")){
+        type = "Camp, Trip, or Retreat";
+    }
+    if (lowercaseDesc.includes("class") || lowercaseDesc.includes("workshop") || lowercaseDesc.includes("training")){
+        type = "Class, Training, or Workship";
+    }
+    if (lowercaseDesc.includes("concert") || lowercaseDesc.includes("performance")){
+        type = "Concert/Performance";
+    }
+    if (lowercaseDesc.includes("conference")){
+        type = "Conference";
+    }
+    if (lowercaseDesc.includes("food") || lowercaseDesc.includes("drink") || lowercaseDesc.includes("meal") || lowercaseDesc.includes("dinner") || lowercaseDesc.includes("lunch") || lowercaseDesc.includes("breakfast")){
+        type = "Dinner/Gala";
+    }
+    if (lowercaseDesc.includes("gaming") || lowercaseDesc.includes("e-sports") || lowercaseDesc.includes("gaming tournament")){
+        type = "E-Sports Tournament";
+    }
+    if (lowercaseDesc.includes("network") || lowercaseDesc.includes("networking")){
+        type = "Networking Event";
+    }
+    if (lowercaseDesc.includes("party") || lowercaseDesc.includes("meetup") || lowercaseDesc.includes("get together")){
+        type = "Party/Social Gathering";
+    }
+    if (lowercaseDesc.includes("race") || lowercaseDesc.includes("endurance") || lowercaseDesc.includes("marathon")){
+        type = "Race/Endurance Event";
+    }
+    if (lowercaseDesc.includes("rally")){
+        type = "Rally";
+    }
+    if (lowercaseDesc.includes("screening")){
+        type = "Screening";
+    }
+    if (lowercaseDesc.includes("seminar")){
+        type = "Seminar/Talk";
+    }
+    if (lowercaseDesc.includes("tour")){
+        type = "Tour";
+    }
+    if (lowercaseDesc.includes("tournament")){
+        type = "Tournament";
+    }
+    if (lowercaseDesc.includes("trade show") || lowercaseDesc.includes("tradeshow") || lowercaseDesc.includes("expo")){
+        type = "Tradeshow/Expo";
+    }
+    if (type === ""){
+        type = "Other";
+    }
+    return type;
+}
 
 //**
 //**
@@ -604,6 +743,31 @@ export async function checkoutAndUpdateEventPayout(data: any, context: any){
     });
     const newEventDoc= await eventDocRef.get();
     return newEventDoc.data()!.d;
+}
+
+export async function fixBrokenEvents(data: any, context: any){
+    const query = await eventsRef
+    .where('d.category', "==", "")
+    .get();
+    const docs = query.docs;
+    for (const doc of docs){
+        let authorID;
+        const docData = doc.data().d;
+        const desc = docData.desc;
+        const isDigitalEvent = false;
+        if (docData.authorId !== undefined){
+            authorID = docData.authorId;
+        } else {
+            authorID = docData.authorID;
+        }
+        const category =  getEventCategoryFromDesc(desc);
+        await eventsRef.doc(doc.id).update({
+            "d.authorID": authorID,
+            "d.category": category,
+            'd.isDigitalEvent': isDigitalEvent
+        });
+    }
+    return;
 }
 //**
 //**

@@ -4,7 +4,7 @@ const messagingAdmin = admin.messaging();
 const userRef = admin.firestore().collection('webblen_user');
 //const transRef = admin.firestore().collection('transactions');
 
-
+///TODO: TRANS NOTIF
 export async function sendTransactionRefNotif(event: any){
 
     const messageTokens: any[] = [];
@@ -12,7 +12,7 @@ export async function sendTransactionRefNotif(event: any){
     const newTransData = event.after.data();
 
     if (prevTransData.status === 'pending' && newTransData.status === 'complete'){
-        const uid = newTransData.transactionUserUid;
+        const uid = newTransData.uid;
         const userDoc = await userRef.doc(uid).get();
         const userDocData = userDoc.data()!.d;
         const userToken = userDocData.messageToken;
@@ -24,6 +24,11 @@ export async function sendTransactionRefNotif(event: any){
         }
     }
 
+    const title = "";
+    console.log(title);
+    
+
+    
     const payload = {
         notification: {
             title: "Your Payout is Complete! 💸",

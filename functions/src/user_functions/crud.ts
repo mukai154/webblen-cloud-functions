@@ -20,6 +20,35 @@ export async function getUserByID(data: any, context: any){
     const userDoc = await userRef.doc(uid).get();
     return userDoc.data()!.d;
 }
+
+export async function haveEveryoneFollowWebblen(data: any, context: any){
+    const userQuery = await userRef.get();
+    const userDocs = userQuery.docs;
+    
+    const webblenDoc = await userRef.doc("EtKiw3gK37QsOg6tPBnSJ8MhCm23").get();
+    const webblenData = webblenDoc.data()!;
+    const webblenFollowers = webblenData.d.followers;
+    
+    for (const userDoc of userDocs){
+        const id = userDoc.id;
+        const userData = userDoc.data().d;
+        let userFollowing = [];
+        if (userData.following === undefined || userData.following === null){
+            userFollowing = [];
+        } else {
+            userFollowing = userData.following;
+        }
+        if (!userFollowing.includes("EtKiw3gK37QsOg6tPBnSJ8MhCm23")){
+            userFollowing.push("EtKiw3gK37QsOg6tPBnSJ8MhCm23");
+            await userRef.doc(id).update({"d.following": userFollowing});
+        }
+        if (!webblenFollowers.includes(id)){
+            webblenFollowers.push(id);
+            await userRef.doc("EtKiw3gK37QsOg6tPBnSJ8MhCm23").update({"d.followers": webblenFollowers});
+        }
+    }
+}
+
 export async function getUsername(data: any, context: any){
     let username = '';
     const uid = data.uid;
@@ -105,18 +134,26 @@ export async function updateUserNotifPreferences(data: any, context: any){
     });
 }
 
-export async function sendFriendRequest(data: any, context: any){
-    const uid = data.uid;
-    const userDoc = userRef.doc(uid);
-    return userDoc.update({
-        'd.notifyHotEvents': data.notifyHotEvents,
-        'd.notifyFlashEvents': data.notifyFlashEvents,
-        'd.notifyFriendRequests': data.notifyFriendRequests,
-        'd.notifySuggestedEvents': data.notifySuggestedEvents,
-        'd.notifyWalletDeposits': data.notifyWalletDeposits,
-        'd.notifyNewMessages': data.notifyNewMessages,
+export async function addWebblenToFollowers(data: any){
+    const uid = data.d.uid;
+    const webblenUID = 'EtKiw3gK37QsOg6tPBnSJ8MhCm23';
+    const userFollowing = [webblenUID];
+    const webblenDoc = await userRef.doc(webblenUID).get();
+    const webblenFollowers = webblenDoc.data()!.d.followers;
+    webblenFollowers.push(uid);
+
+    await userRef.doc(webblenUID).update({
+        'd.followers': webblenFollowers,
+    });
+
+    return userRef.doc(uid).update({
+        'd.webblen': 0.001,
+        'd.impactPoints': 1.001,
+        'd.followers': [],
+        'd.following': userFollowing,
     });
 }
+
 
 export async function sendDailyNotification(event: any){
     return;

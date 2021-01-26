@@ -4,7 +4,9 @@ const database = admin.firestore();
 const userRef = admin.firestore().collection('webblen_user');
 //const recurringEventsRef = database.collection('recurring_events');
 const upcomingEventsRef = database.collection('upcoming_events');
-const pastEventsRef = database.collection('past_events');
+const eventsRef = database.collection('events');
+const postsRef = database.collection('posts');
+const commentsRef = database.collection('comments');
 //const userCalendarRef = database.collection('user_calendars');
 //const pastEventsGeoRef = geofirestore.collection('past_events');
 
@@ -401,63 +403,58 @@ export async function setMonthlyCheckInsAmericaChicago(event: any){
 
 export async function distributeEventPoints(event: any){
   const currentDateTime = Date.now();  
-  const eventSnapshots = await upcomingEventsRef.where('d.endDateInMilliseconds', '<=', currentDateTime).get();
-  
+  const eventSnapshots = await eventsRef
+  .where('d.paidOut', '==', false)
+  .where('d.endDateTimeInMilliseconds', '<=', currentDateTime)
+  .get();
   for (const eventDoc of eventSnapshots.docs) {
     const eventData = eventDoc.data().d;
     const attendees = eventData.attendees;
-    console.log(attendees.length);
-    const eventGeohash = eventDoc.data().g;
-    const eventLoc = eventDoc.data().l;
-    const eventKey = eventData.eventKey;
-    //PLACE EVENT TO THE PAST
-    await pastEventsRef.doc(eventKey).set({
-      'd': eventData,
-      'g': eventGeohash,
-      'l': eventLoc
-    });
-    await upcomingEventsRef.doc(eventData.authorUid).collection('events').doc(eventKey).delete();
-    await upcomingEventsRef.doc(eventKey).delete();
-
-    //CALCUTATE PAYOUTS
-   if (attendees.length > 0){
     for (const uid of attendees){
-      const userSnapshot = await userRef.doc(uid).get();
-      const userData = userSnapshot.data()!.d;
-      const eventHistory = userData.eventHistory;
-      eventHistory.push(eventKey);
-      //AP & AMOUNT EARNED
+      const userDoc = await userRef.doc(uid).get();
+      const userData = userDoc.data()!.d;
       let ap = userData.ap;
-      let apLvl = userData.apLvl;
-      let eventsToLvlUp = userData.eventsToLvlUp;
-      let eventPoints = userData.eventPoints;
-      const amountEarned = Math.log(400) * (attendees.length) * ap;
-      eventPoints = eventPoints + amountEarned;
-      ap = ap - (ap * 0.15);
-      if (eventsToLvlUp >= 1){
-        eventsToLvlUp = eventsToLvlUp - 1;
+      if (ap <= 5.00){
+        ap = ap + 0.04;
       }
-      if (eventsToLvlUp === 0 && apLvl < 5){
-        apLvl = apLvl + 1;
-        if (apLvl === 2){
-          eventsToLvlUp = 50;
-        } else if (apLvl === 3){
-          eventsToLvlUp = 100;
-        } else if (apLvl === 4){
-          eventsToLvlUp = 200;
-        }
-      }
-      await userRef.doc(uid).update({
-        'd.ap': ap,
-        'd.apLvl': apLvl,
-        'd.eventsToLvlUp': eventsToLvlUp,
-        'd.eventPoints': eventPoints,
-        'd.eventHistory': eventHistory
-      });    
+      const pay = 1 + (ap * attendees.length);
+      const newPointVal = userData.eventPoints + pay;
+      await userRef.doc(uid).update({"d.ap": ap, "d.eventPoints": newPointVal});
     }
-   }    
+    await eventsRef.doc(eventDoc.id).update({'d.paidOut': true});
   }
 }
+
+export async function distributePostPoints(event: any){
+  const dateTimeOneWeekAgo = Date.now() - 604800000;  
+  const postSnapshots = await postsRef
+  .where('paidOut', '==', false)
+  .where('postDateTimeInMilliseconds', '<=', dateTimeOneWeekAgo)
+  .get();
+  for (const postDoc of postSnapshots.docs) {
+    const commenters = [];
+    const commentsSnapshots = await commentsRef.doc(postDoc.id).collection('comments').get();
+    for (const commentDoc of commentsSnapshots.docs){
+      const commentData = commentDoc.data();
+      const commenterID = commentData.senderUID;
+      commenters.push(commenterID);
+    }
+    for (const uid of commenters){
+      const userDoc = await userRef.doc(uid).get();
+      const userData = userDoc.data()!.d;
+      let ap = userData.ap;
+      if (ap <= 5.00){
+        ap = ap + 0.02;
+      }
+      const pay = 0.5 + (ap * commenters.length);
+      const newPointVal = userData.eventPoints + pay;
+      await userRef.doc(uid).update({"d.ap": ap, "d.eventPoints": newPointVal});
+    }
+    await postsRef.doc(postDoc.id).update({'paidOut': true});
+  }
+}
+
+
 
 export async function setEventRecommendations(event: any){
   //const messageTokens: any[] = [];
