@@ -8,15 +8,19 @@ admin.initializeApp(functions.config().firebase);
 
 //EXPORTS
 export * from "./webblen_events/_export";
+export * from "./cron_functions/_export";
 
-// import * as userFunctions from './user_functions/crud'
+
+
+
+import * as userFunctions from './user_functions/crud'
 // import * as scheduleUserFunctions from './scheduled_user_functions/index'
 // import * as eventFunctions from './event_functions/crud'
-// import * as notificationFunctions from './remote_notif_functions/index'
-// import * as notifActionFunctions from './notif_action_functions/index'
-// import * as jobFunctions from './scheduled_event_functions/index'
+import * as notificationFunctions from './remote_notif_functions/index'
+import * as notifActionFunctions from './notif_action_functions/index'
+import * as jobFunctions from './scheduled_event_functions/index'
 // import * as transactionFunctions from './transaction_functions/index'
-// import * as algoliaFunctions from './algolia/keys'
+import * as algoliaFunctions from './algolia/keys'
 // import * as stripeFunctions from './stripe_functions/index'
 // import * as ticketFunctions from './ticket_functions/crud'
 // import * as stripeWebFunctions from './stripe_functions/web'
@@ -24,16 +28,6 @@ export * from "./webblen_events/_export";
 // import * as sendgridFunctions from './send_grid_functions/index'
 // import * as agoraFunctions from './agora/index'
 // import * as postFunctions from './post_functions/crud'
-
-
-// export const checkInAndUpdateEventPayout = functions.https.onCall((data, context) => {
-//     return eventFunctions.checkInAndUpdateEventPayout(data, context);
-// });
-
-// export const checkoutAndUpdateEventPayout = functions.https.onCall((data, context) => {
-//     return eventFunctions.checkoutAndUpdateEventPayout(data, context);
-// });
-
 
 // // https://us-central1-webblen-events.cloudfunctions.net/fixBrokenEvents
 // export const fixBrokenEvents = functions.https.onRequest((data, context) => {
@@ -56,39 +50,39 @@ export * from "./webblen_events/_export";
 // //TRIGGER EVENTS
 
 // //users
-// export const createUserTrigger = functions
-// .firestore
-// .document('webblen_user/{user}')
-// .onCreate(async event => {
-//     const data = event.data();
-//     const objectID = event.id;
-//     await userFunctions.addWebblenToFollowers(data);
-//     return algoliaFunctions.ALGOLIA_USERS_INDEX.addObject({...data, objectID});
-// });
+export const createUserTrigger = functions
+.firestore
+.document('webblen_user/{user}')
+.onCreate(async event => {
+    const data = event.data();
+    const objectID = event.id;
+    await userFunctions.addWebblenToFollowers(data);
+    return algoliaFunctions.ALGOLIA_USERS_INDEX.addObject({...data, objectID});
+});
 
-// export const updateUserTrigger = functions
-// .firestore
-// .document('webblen_user/{user}')
-// .onUpdate(async event => {
-//     const data = event.after.data();
-//     const objectID = event.after.id;    
-//     const prevUserData = event.before.data().d;
-//     const newUserData = data.d;  
+export const updateUserTrigger = functions
+.firestore
+.document('webblen_user/{user}')
+.onUpdate(async event => {
+    const data = event.after.data();
+    const objectID = event.after.id;    
+    const prevUserData = event.before.data().d;
+    const newUserData = data.d;  
 
-//     const prevPoints = prevUserData.eventPoints;
-//     const newPoints = newUserData.eventPoints;
+    const prevPoints = prevUserData.eventPoints;
+    const newPoints = newUserData.eventPoints;
 
-//     const prevFollowers = prevUserData.followers;
-//     const newFollowers = newUserData.followers;
+    const prevFollowers = prevUserData.followers;
+    const newFollowers = newUserData.followers;
 
-//     if (newPoints > prevPoints){
-//         await notificationFunctions.userDepositNotification(event);
-//     } else if (newFollowers.length > prevFollowers.length){
-//         await notificationFunctions.newFollowerNotification(event);
-//     }
-//     await algoliaFunctions.ALGOLIA_USERS_INDEX.saveObject({...data, objectID});
-//     return;  
-// });
+    if (newPoints > prevPoints){
+        await notificationFunctions.userDepositNotification(event);
+    } else if (newFollowers.length > prevFollowers.length){
+        await notificationFunctions.newFollowerNotification(event);
+    }
+    await algoliaFunctions.ALGOLIA_USERS_INDEX.saveObject({...data, objectID});
+    return;  
+});
 
 // export const deleteUserTrigger = functions
 // .firestore
@@ -231,14 +225,14 @@ export * from "./webblen_events/_export";
 //     return jobFunctions.distributeEventPoints(event);
 // });
 
-// export const distributePostPoints = functions
-// .pubsub 
-// .schedule('every 2 hours')
-// .timeZone('America/Chicago')
-// .onRun(event => {
+export const distributePostPoints = functions
+.pubsub 
+.schedule('every 2 hours')
+.timeZone('America/Chicago')
+.onRun(event => {
 
-//     return jobFunctions.distributePostPoints(event);
-// });
+    return jobFunctions.distributePostPoints(event);
+});
 
 // export const addViewsToEvents = functions
 // .pubsub    

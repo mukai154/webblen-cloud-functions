@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin'
 //const messagingAdmin = admin.messaging();
 const userRef = admin.firestore().collection('webblen_user');
+const newUserRef = admin.firestore().collection('webblen_users');
 const postsRef = admin.firestore().collection('community_news');
 //const locRef = admin.firestore().collection('locations');
 //const eventsRef = admin.firestore().collection('upcoming_events');
