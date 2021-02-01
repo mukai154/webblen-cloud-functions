@@ -3,81 +3,6 @@ import * as admin from 'firebase-admin'
 const messagingAdmin = admin.messaging();
 const userRef = admin.firestore().collection('webblen_user');
 
-export async function sendUserNotification(event: any){
-
-    console.log("sendUserNotification Started...");
-    
-    const messageTokens = [];
-    const uid = event.data().uid;
-    const userDoc = await userRef.doc(uid).get();
-    const token = userDoc.data()!.d.messageToken;
-    const notifyFriendRequests = userDoc.data()!.d.notifyFriendRequests;
-    console.log(token);
-    console.log(uid);
-    messageTokens.push(token);
-    let notifTitle = "";
-    const notifDesc = event.data().notificationDescription;
-    const notifType = event.data().notificationType;
-    //const notifData = event.data().notifData;
-    const notifKey = event.data().notifKey;
-    
-
-    console.log("sending user notification to:" + messageTokens);
-
-    if (notifType === "friendRequest"){
-        notifTitle = "New Friend Request!";
-    } else if (notifType === "communityDisbanded"){
-        notifTitle = "Community Disbanded";
-    } else if (notifType === "invite"){
-        notifTitle = "New Community Invite!";
-        notifTitle = event.data().notificationTitle;
-        if (event.data().notificationExpDate === null){
-            const notifExp = new Date().getTime() + 1209600000;
-            await admin.firestore().doc("user_notifications/" + notifKey).update({
-                notificationExpDate: notifExp
-            });
-        }
-    } else if (notifType === "eventShare"){
-        notifTitle = event.data().notificationTitle;
-        if (event.data().notificationExpDate === null){
-            const notifExp = new Date().getTime() + 1209600000;
-            await admin.firestore().doc("user_notifications/" + notifKey).update({
-                notificationExpDate: notifExp
-            });
-        }
-    } else {
-        return;
-    }
-
-    const userNotifSnapshots = await admin.firestore()
-    .collection('user_notificiations')
-    .where('uid', '==', uid)
-    .where('notificationSeen', '==', false)
-    .get();
-
-    const unseenNotifCount = userNotifSnapshots.docs.length.toString();
-
-    console.log(notifTitle);
-
-    const payload = {
-        notification: {
-            title: notifTitle,
-            body: notifDesc,
-            badge: unseenNotifCount
-        },
-        data: {
-            "TYPE": 'notification',
-            "DATA": ''
-        }
-    };
-    
-    if (!notifyFriendRequests && notifType === "friendRequest"){
-        return
-    } else {
-        await messagingAdmin.sendToDevice(messageTokens, payload);
-    }
-}
-
 export async function userDepositNotification(event: any){
 
     const prevUserData = event.before.data().d;
@@ -129,356 +54,146 @@ export async function userDepositNotification(event: any){
     });
 }
 
-export async function sendNewCommunityPostNotif(event: any){
-
+export async function notifyFollowersStreamIsLive(data: any){
     const messageTokens: any[] = [];
-
-    const postData = event.data();
-    const authorUsername = postData.author;
-    const comAreaName = postData.areaName;
-    const comName = postData.communityName;
-    const comDocRef = 'locations/' + comAreaName + '/communities/' + comName;
-     
-    const comDoc = await admin.firestore().doc(comDocRef).get();
-    const comDocData = comDoc.data()!;
-
-    const members = comDocData.memberIDs;
-    const followers = comDocData.followers;
-
-    for (const uid in members){
-        const userDoc = await userRef.doc(uid).get();
-        const userDocData = userDoc.data()!.d;
-        const username = "@" + userDocData.username;
-        if (userDocData && authorUsername !== username){
-            const userToken = userDocData.messageToken;
-            if (userToken){
-                messageTokens.push(userToken);
-                const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
-                const notifExp = new Date().getTime() + 1209600000;
-                await admin.firestore().doc("user_notifications/" + notifKey).create({
-                    messageToken: userToken,
-                    notificationData: comAreaName + "." + comName,
-                    notificationTitle: "New post in " + comAreaName + "/" + comName,
-                    notificationDescription: postData.title,
-                    notificationExpirationDate: notifExp.toString(),
-                    notificationExpDate: notifExp,
-                    notificationKey: notifKey,
-                    notificationSeen: false,
-                    notificationSender: '',
-                    sponsoredNotification: false,
-                    notificationType: 'newPost',
-                    uid: userDocData.uid
-                });
-            }
-        }
-    }
-
-    for (const uid in followers){
-        const userDoc = await userRef.doc(uid).get();
-        const userDocData = userDoc.data()!.d;
-        if (userDocData){
-            const userToken = userDocData.messageToken;
-            if (userToken && !messageTokens.includes(userToken)){
-                messageTokens.push(userToken);
-                const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
-                const notifExp = new Date().getTime() + 1209600000;
-                await admin.firestore().doc("user_notifications/" + notifKey).create({
-                    messageToken: userToken,
-                    notificationData: comAreaName + "." + comName,
-                    notificationTitle: "New post in " + comAreaName + "/" + comName,
-                    notificationDescription: postData.title,
-                    notificationExpirationDate: notifExp.toString(),
-                    notificationExpDate: notifExp,
-                    notificationKey: notifKey,
-                    notificationSeen: false,
-                    notificationSender: '',
-                    sponsoredNotification: false,
-                    notificationType: 'newPost',
-                    uid: userDocData.uid
-                });
-            }
-        }        
-    }
-
-    const notifTitle = "New post in " + comAreaName + "/" + comName;
-    const notifBody = postData.title;
-
-    const payload = {
-        notification: {
-            title: notifTitle,
-            body: notifBody,
-            badge: "1",
-        },
-        data: {
-            "TYPE": "newPost",
-            "DATA": postData.postID
-        }
-    };
+    const eventID = data.eventID;
+    const uid = data.uid;
+   
+    const userDoc = await userRef.doc(uid).get();
+    const userNotifData = userDoc.data()!;
+    const userData = userDoc.data()!.d;
+    const username = userData.username;
+    const followers = userData.followers;
     
-    await messagingAdmin.sendToDevice(messageTokens, payload);
-
-}
-
-export async function sendNewCommunityEventNotification(event: any){
-
-    console.log("sendNewCommunityEventNotification Started...");
-    const messageTokens: any[] = [];
-
-    const eventPostData = event.data();
-    const authorUid = eventPostData.authorUid;
-    const comAreaName = eventPostData.communityAreaName;
-    const comName = eventPostData.communityName;
-    const comDocRef = 'locations/' + comAreaName + '/communities/' + comName;
-     
-    const comDoc = await admin.firestore().doc(comDocRef).get();
-    const comDocData = comDoc.data()!;
-
-    const members = comDocData.memberIDs;
-    const followers = comDocData.followers;
-
-    for (const uid in members){
-        const userDoc = await userRef.doc(uid).get();
-        const userDocData = userDoc.data()!.d;
-        if (userDocData && uid !== authorUid){
-            const userToken = userDocData.messageToken;
-            if ((userToken !== undefined && userToken !== null) && userToken.length > 0){
-                if (!messageTokens.includes(userToken)){
-                    messageTokens.push(userToken);
+    const currentTimeInMilli = new Date().getTime();
+    const notifTimingLimit = currentTimeInMilli - 3600000;
+    let hasPermissionToNotify;
+    if (userNotifData.notifyNearbyLiveStreams === null || userNotifData.notifyNearbyLiveStreams === true){
+        hasPermissionToNotify = true;
+    } else {
+        hasPermissionToNotify = false;
+    }
+    
+    
+    for (const follower of followers){
+        console.log(follower);
+        const followerDoc = await userRef.doc(follower).get();
+        if (followerDoc.exists){
+            const followerData = followerDoc.data()!.d;
+            const followerID = followerData.uid;
+            const followerToken = followerData.messageToken;
+            if (followerID === 'uMc074hbM8RqhI0kKqXxDpve9iQ2' || followerID === 'EtKiw3gK37QsOg6tPBnSJ8MhCm23'){
+                console.log(followerToken);
+                if (userNotifData.lastNotificationTimeInMilliseconds !== null && userNotifData.lastNotificationTimeInMilliseconds < notifTimingLimit && hasPermissionToNotify){
+                    messageTokens.push(followerToken);
+                    await admin.firestore().doc("webbolen_user/" + followerID).update({
+                        lastNotificationTimeInMilliseconds: currentTimeInMilli,
+                    });
                 }
                 const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
                 const notifExp = new Date().getTime() + 1209600000;
                 await admin.firestore().doc("user_notifications/" + notifKey).create({
-                    messageToken: userToken,
-                    notificationData: comAreaName + "." + comName,
-                    notificationTitle: comAreaName + "/" + comName + " has a new special event happening soon!",
-                    notificationDescription: eventPostData.title,
+                    messageToken: followerToken,
+                    notificationData: eventID,
+                    notificationTitle: "@" + username + " is Streaming Live",
+                    notificationDescription: '',
                     notificationExpirationDate: notifExp.toString(),
                     notificationExpDate: notifExp,
                     notificationKey: notifKey,
                     notificationSeen: false,
                     notificationSender: '',
                     sponsoredNotification: false,
-                    notificationType: 'newEvent',
-                    uid: userDocData.uid
+                    notificationType: 'event',
+                    uid: followerID
                 });
-            }
-        }
-    }
-
-    for (const uid in followers){
-        const userDoc = await userRef.doc(uid).get();
-        const userDocData = userDoc.data()!.d;
-        if (userDocData && uid !== authorUid){
-            const userToken = userDocData.messageToken;
-            if ((userToken !== undefined && userToken !== null) && userToken.length > 0){
-                if (!messageTokens.includes(userToken)){
-                    messageTokens.push(userToken);
-                }
-                const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
-                const notifExp = new Date().getTime() + 1209600000;
-                await admin.firestore().doc("user_notifications/" + notifKey).create({
-                    messageToken: userToken,
-                    notificationData: comAreaName + "." + comName,
-                    notificationTitle: comAreaName + "/" + comName + " has a new special event happening soon!",
-                    notificationDescription: eventPostData.title,
-                    notificationExpirationDate: notifExp.toString(),
-                    notificationKey: notifKey,
-                    notificationSeen: false,
-                    notificationSender: '',
-                    sponsoredNotification: false,
-                    notificationType: 'newEvent',
-                    uid: userDocData.uid
-                });
-            }
-        }        
-    }
-
-    const notifTitle = comAreaName + "/" + comName + " has a new special event happening soon!";
-    const notifBody = eventPostData.title;
-
-    const payload = {
-        notification: {
-            title: notifTitle,
-            body: notifBody,
-            badge: "1",
-        },
-        data: {
-            "TYPE": "newEvent",
-            "DATA": comAreaName + "." + comName,
-        }
-    };
-    
-    await messagingAdmin.sendToDevice(messageTokens, payload);
-
-    
-}
-
-export async function sendCommunityPostCommentNotification(event: any){
-
-    console.log("sendNewPostCommentNotification Started...");
-    const messageTokens: any[] = [];
-
-    const commentData = event.data();
-    //const commentUID = event.data().uid;
-    const commentPostID = commentData.postID;
-    const commentUserName = commentData.username;
-    const postDocRef = 'community_news/' + commentPostID;
-    const postDoc = await admin.firestore().doc(postDocRef).get();
-    const postDocData = postDoc.data()!;
-    const postTitle = postDocData.title;
-    const comName = postDocData.communityName;
-    const comAreaName = postDocData.areaName;
-    const comDocRef = 'locations/' + comAreaName + '/communities/' + comName;
-     
-    const comDoc = await admin.firestore().doc(comDocRef).get();
-    const comDocData = comDoc.data()!;
-
-    const members = comDocData.memberIDs;
-    const followers = comDocData.followers;
-    const sentNotif: any[] = [];
-
-    
-    for(const uid of members){
-        console.log(uid);
-        const userDoc = await userRef.doc(uid).get();
-        const userData = userDoc.data()!.d;
-        console.log(userData); 
-        if (userData.lastNotificationTimeInMilliseconds !== undefined){
-            //const lastNotifTime = userData.lastNotificationTimeInMilliseconds;
-            if (!sentNotif.includes(uid)){
-                sentNotif.push(uid);
-                messageTokens.push(userData.messageToken);
-                    const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
-                    const notifExp = new Date().getTime() + 1209600000;
-                    await admin.firestore().doc("user_notifications/" + notifKey).create({
-                        messageToken: userData.messageToken,
-                        notificationData: comAreaName + "." + comName,
-                        notificationTitle: comAreaName + "/" + comName + ": " + postTitle,
-                        notificationDescription:  "@" + commentUserName + " made a comment",
-                        notificationExpirationDate: notifExp.toString(),
-                        notificationExpDate: notifExp,
-                        notificationKey: notifKey,
-                        notificationSeen: false,
-                        notificationSender: postDocData.postID,
-                        sponsoredNotification: false,
-                        notificationType: 'newPostComment',
-                        uid: userData.uid
-                    });  
-                    // await userRef.doc(uid).update({
-                    //     'lastNotificationTimeInMilliseconds': Date.now()
-                    // });
-                
-            }
-        } else {
-            if (!sentNotif.includes(uid)){
-                sentNotif.push(uid);
-                messageTokens.push(userData.messageToken);
-                    const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
-                    const notifExp = new Date().getTime() + 1209600000;
-                    await admin.firestore().doc("user_notifications/" + notifKey).create({
-                        messageToken: userData.messageToken,
-                        notificationData: comAreaName + "." + comName,
-                        notificationTitle: comAreaName + "/" + comName + ": " + postTitle,
-                        notificationDescription:  "@" + commentUserName + " made a comment",
-                        notificationExpirationDate: notifExp.toString(),
-                        notificationExpDate: notifExp,
-                        notificationKey: notifKey,
-                        notificationSeen: false,
-                        notificationSender: postDocData.postID,
-                        sponsoredNotification: false,
-                        notificationType: 'newPostComment',
-                        uid: userData.uid
-                    });  
-                    // await userRef.doc(uid).update({
-                    //     'lastNotificationTimeInMilliseconds': Date.now()
-                    // });
-                
-            }
-                // await userRef.doc(uid).update({
-                //     'lastNotificationTimeInMilliseconds': Date.now()
-                // });
-            } 
-        }
         
-        for (const uid of followers){
-            console.log(uid);
-            const userDoc = await userRef.doc(uid).get();
-            const userData = userDoc.data()!;
-            console.log(userData); 
-            if (userData.lastNotificationTimeInMilliseconds !== undefined){
-                //const lastNotifTime = userData.lastNotificationTimeInMilliseconds;
-                if (!sentNotif.includes(uid)){
-                    sentNotif.push(uid);
-                    messageTokens.push(userData.messageToken);
-                        const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
-                        const notifExp = new Date().getTime() + 1209600000;
-                        await admin.firestore().doc("user_notifications/" + notifKey).create({
-                            messageToken: userData.messageToken,
-                            notificationData: comAreaName + "." + comName,
-                            notificationTitle: comAreaName + "/" + comName + ": " + postTitle,
-                            notificationDescription:  "@" + commentUserName + " made a comment",
-                            notificationExpirationDate: notifExp.toString(),
-                            notificationExpDate: notifExp,
-                            notificationKey: notifKey,
-                            notificationSeen: false,
-                            notificationSender: postDocData.postID,
-                            sponsoredNotification: false,
-                            notificationType: 'newPostComment',
-                            uid: userData.uid
-                        });  
-                        // await userRef.doc(uid).update({
-                        //     'lastNotificationTimeInMilliseconds': Date.now()
-                        // });
-                    
-                }
-            } else {
-                if (!sentNotif.includes(uid)){
-                    sentNotif.push(uid);
-                    messageTokens.push(userData.messageToken);
-                        const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
-                        const notifExp = new Date().getTime() + 1209600000;
-                        await admin.firestore().doc("user_notifications/" + notifKey).create({
-                            messageToken: userData.messageToken,
-                            notificationData: comAreaName + "." + comName,
-                            notificationTitle: comAreaName + "/" + comName + ": " + postTitle,
-                            notificationDescription:  "@" + commentUserName + " made a comment",
-                            notificationExpirationDate: notifExp.toString(),
-                            notificationExpDate: notifExp,
-                            notificationKey: notifKey,
-                            notificationSeen: false,
-                            notificationSender: postDocData.postID,
-                            sponsoredNotification: false,
-                            notificationType: 'newPostComment',
-                            uid: userData.uid
-                        });  
-                        // await userRef.doc(uid).update({
-                        //     'lastNotificationTimeInMilliseconds': Date.now()
-                        // });
-                    
-                }
-                    // await userRef.doc(uid).update({
-                    //     'lastNotificationTimeInMilliseconds': Date.now()
-                    // });
-                }  
+            }
         }
-        const notifTitle = comAreaName + "/" + comName + ": " + postTitle;
-        const notifBody = "@" + commentUserName + " made a comment";
+    }
+    
 
+    const payload = {
+        notification: {
+          title: "@" + username + " is Streaming Live",
+          body: "Don't Miss Out!",
+          badge: "1"
+        },
+        data: {
+          TYPE: 'event',
+          DATA: eventID,
+        }
+    };
+
+    await messagingAdmin.sendToDevice(messageTokens, payload).catch(function onError(error:any) {
+        console.log(error);
+      });;
+      
+    return;
+}
+
+export async function newFollowerNotification(event: any){
+
+    const prevUserData = event.before.data().d;
+    const newUserData = event.after.data().d;
+
+    const messageToken = newUserData.messageToken;
+
+    const prevFollowers = prevUserData.followers;
+    const newFollowers = newUserData.followers;
+
+    let newFollower;
+
+    for (const uid of newFollowers){
+        if (!prevFollowers.includes(uid)){
+            newFollower = uid;
+        }
+    }
+    
+    if (newFollower === null){
+        return;
+    }
+
+    console.log(newFollower);
+    
+
+    const userDoc = await userRef.doc(newFollower).get();
+    const userData = userDoc.data()!.d;
+    const userUID = userData.uid;
+    const username = userData.username;
+    const userImgURL = userData.profile_pic;
+
+    if (userData.notifyNewFollowers === null || userData.notifyNewFollowers === true){
         const payload = {
             notification: {
-                title: notifTitle,
-                body: notifBody,
+                title: "You Have a New Follower!",
+                body: "@" + username + " has started following you",
                 badge: "1",
             },
             data: {
-                "TYPE": "newPostComment",
-                "DATA": postDocData.postID
+                "TYPE": "user",
+                "DATA": ""
             }
         };
+        await messagingAdmin.sendToDevice(messageToken, payload);
+    }
+
     
-        await messagingAdmin.sendToDevice(messageTokens, payload);
-    
-    
+    const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();
+    const notifExp = new Date().getTime() + 1209600000;
+    return admin.firestore().doc("user_notifications/" + notifKey).create({
+        messageToken: messageToken,
+        notificationData: userImgURL,
+        notificationTitle: username,
+        notificationDescription: "started following you",
+        notificationExpirationDate: notifExp.toString(),
+        notificationExpDate: notifExp,
+        notificationKey: notifKey,
+        notificationSeen: false,
+        notificationSender: userUID,
+        sponsoredNotification: false,
+        notificationType: 'user',
+        uid: newUserData.uid
+    });
 }
 
 export async function sendMessageReceivedNotification(event: any){
@@ -524,7 +239,6 @@ export async function sendMessageReceivedNotification(event: any){
 
     await messagingAdmin.sendToDevice(messageTokens, payload);
     return;
-
 }
 
 
