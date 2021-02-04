@@ -3,7 +3,6 @@ import * as request from 'request'
 
 const appRef = admin.firestore().collection('app_release_info');
 
-
 export async function findNearestZipcodes(data: any, context: any){
   const zipcode = data.zipcode;
   const zipcodeApiDocRef = await appRef.doc('zipcodes_api').get();

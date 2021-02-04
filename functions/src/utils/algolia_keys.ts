@@ -9,4 +9,3 @@ export const ALGOLIA_WEBLLEN_EVENTS_INDEX = ALGOLIA_CLIENT.initIndex('events');
 export const ALGOLIA_COMMUNITIES_INDEX = ALGOLIA_CLIENT.initIndex('communities')
 export const ALGOLIA_USERS_INDEX = ALGOLIA_CLIENT.initIndex('users')
 export const ALGOLIA_POSTS_INDEX = ALGOLIA_CLIENT.initIndex('posts')
-

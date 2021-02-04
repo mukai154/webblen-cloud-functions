@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin'
+
 const purchasedTicketsRef = admin.firestore().collection('purchased_tickets');
 const ticketDistroRef = admin.firestore().collection('ticket_distros');
-
 
 export async function getPurchasedTickets(data: any, context: any){
     const tickets = [];
