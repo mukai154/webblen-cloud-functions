@@ -157,7 +157,7 @@ export const notifyFollowersStreamIsLive = functions.https.onCall((data) => {
     return notificationFunctions.notifyFollowersStreamIsLive(data);
 });
 
-//**
+//**c
 //**
 //** 
 //TRIGGER EVENTS
@@ -611,11 +611,12 @@ export const startAgoraCloudRecording = functions.https.onCall((data) => {
 
 
 //EMAIL
-// export const sendEmailConfirmation = functions.https.onRequest((req, res) => {
-//     cors(req, res, async () => {
-//         return sendgridFunctions.sendEmailConfirmation(req,res);
-//     });
-// });
+export const sendEmailConfirmationViaWeb = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        return sendgridFunctions.sendEmailConfirmationWeb(req,res);
+    });
+});
+
 export const sendEmailConfirmation = functions.https.onCall((data, res) => {
     return sendgridFunctions.sendEmailConfirmation(data,res);
 });
