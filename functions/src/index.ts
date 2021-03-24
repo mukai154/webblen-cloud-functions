@@ -1,9 +1,8 @@
-import * as functions from 'firebase-functions'
-import * as admin from 'firebase-admin'
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
 
+///Firebase Initialization
 admin.initializeApp(functions.config().firebase);
 
-//EXPORTS
-export * from './export/cron_functions_export';
-export * from './export/firestore_triggers_export';
-export * from './export/http_functions_export';
+//Exports
+export * from "./webblen_firestore_triggers/_export";

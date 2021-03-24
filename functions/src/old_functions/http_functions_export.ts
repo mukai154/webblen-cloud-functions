@@ -3,17 +3,17 @@ import * as admin from 'firebase-admin'
 import * as corsModule from 'cors';
 const cors = corsModule({origin: true});
 
-import * as agoraFunctions from '../cloud_functions/agora_functions';
+import * as agoraFunctions from '../services/agora/agora_functions';
 import * as algoliaKeys from '../utils/algolia_keys';
-import * as eventFunctions from "../cloud_functions/event_functions";
+import * as eventFunctions from "../services/firestore/webblen_event_functions";
 import * as locationFunctions from '../utils/location_functions';
-import * as notifActionFunctions from '../cloud_functions/notification_functions/action_notif_functions';
-import * as notifNonactionFunctions from "../cloud_functions/notification_functions/nonaction_notif_functions";
-import * as sendGridFunctions from '../cloud_functions/send_grid_functions';
-import * as stripeFunctions from '../cloud_functions/stripe_functions/stripe_functions';
-import * as stripeWebFunctions from '../cloud_functions/stripe_functions/stripe_web_functions';
-import * as ticketFunctions from '../cloud_functions/ticket_functions';
-import * as userFunctions from '../cloud_functions/user_functions';
+import * as notifActionFunctions from '../webblen_cloud_functions/notification_functions/action_notif_functions';
+import * as notifNonactionFunctions from "../webblen_cloud_functions/notification_functions/nonaction_notif_functions";
+import * as sendGridFunctions from '../webblen_cloud_functions/send_grid_functions';
+import * as stripeFunctions from '../webblen_cloud_functions/stripe_functions/stripe_functions';
+import * as stripeWebFunctions from '../webblen_cloud_functions/stripe_functions/stripe_web_functions';
+import * as ticketFunctions from '../webblen_cloud_functions/ticket_functions';
+import * as userFunctions from '../webblen_cloud_functions/user_functions';
 
 //EVENT CHECK IN/OUT
 export const checkIntoEvent = functions.https.onCall((data, context) => {

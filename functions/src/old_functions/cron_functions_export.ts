@@ -2,10 +2,10 @@
 import * as functions from "firebase-functions";
 
 //Custom Imports
-import * as webblenFunctions from "../cloud_functions/webblen_functions";
-import * as eventFunctions from "../cloud_functions/event_functions";
-import * as postFunctions from "../cloud_functions/post_functions";
-import * as nonactionNotifFunctions from "../cloud_functions/notification_functions/nonaction_notif_functions";
+import * as webblenFunctions from "../webblen_cloud_functions/webblen_functions";
+import * as eventFunctions from "../webblen_cloud_functions/event_functions";
+import * as postFunctions from "../webblen_cloud_functions/post_functions";
+import * as nonactionNotifFunctions from "../webblen_cloud_functions/notification_functions/nonaction_notif_functions";
 
 // PAYOUT FUNCTIONS
 export const distributeEventPay = functions

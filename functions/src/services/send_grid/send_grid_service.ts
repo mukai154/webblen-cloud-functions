@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin'
 
 
-export async function sendEmailConfirmation(data: any, res: any) {
+export async function sendTicketPurchaseConfirmationEmail(data: any, res: any) {
   console.log('sending confirmation email..');
   //const data = req.body.data;
   console.log(data);
