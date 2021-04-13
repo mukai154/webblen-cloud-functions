@@ -2,11 +2,11 @@
 import * as functions from "firebase-functions";
 
 // Custom Imports
-import * as algoliaService from "../services/algolia/webblen_posts";
-import * as webblenPostService from "../services/firestore/webblen_post_service";
-import * as webblenUserService from "../services/firestore/webblen_user_service";
+import * as algoliaService from "../services_general/algolia/webblen_posts";
+import * as webblenPostService from "../services_general/firestore/webblen_post_service";
+import * as webblenUserService from "../services_general/firestore/webblen_user_service";
 
-export const createWebblenPostsTrigger = functions.firestore
+export const createWebblenPostTrigger = functions.firestore
 	.document("posts/{doc}")
 	.onCreate(async (event) => {
 		const data = event.data();
@@ -15,14 +15,14 @@ export const createWebblenPostsTrigger = functions.firestore
 		return algoliaService.saveWebblenPostToSearchIndex(data);
 	});
 
-export const updateWebblenPostsTrigger = functions.firestore
+export const updateWebblenPostTrigger = functions.firestore
 	.document("posts/{doc}")
 	.onUpdate(async (event) => {
 		const data = event.after.data();
 		return algoliaService.saveWebblenPostToSearchIndex(data);
 	});
 
-export const deleteWebblenPostsTrigger = functions.firestore
+export const deleteWebblenPostTrigger = functions.firestore
 	.document("posts/{doc}")
 	.onDelete(async (event) => {
 		const data = event.data();

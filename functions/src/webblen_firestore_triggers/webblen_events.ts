@@ -2,9 +2,9 @@
 import * as functions from "firebase-functions";
 
 // Custom Imports
-import * as algoliaService from "../services/algolia/webblen_events";
-import * as webblenEventService from "../services/firestore/webblen_event_service";
-import * as webblenUserService from "../services/firestore/webblen_user_service";
+import * as algoliaService from "../services_general/algolia/webblen_events";
+import * as webblenEventService from "../services_general/firestore/webblen_event_service";
+import * as webblenUserService from "../services_general/firestore/webblen_user_service";
 
 export const createWebblenEventTrigger = functions.firestore
 	.document("webblen_events/{doc}")
