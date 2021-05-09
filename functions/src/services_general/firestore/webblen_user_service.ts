@@ -2,6 +2,26 @@ import * as admin from 'firebase-admin'
 
 const userRef = admin.firestore().collection('webblen_users');
 
+export async function getFollowersToNotify(uid: any){
+    const ids = [];
+    const userDoc = await userRef.doc(uid).get();
+    const userData = userDoc.data()!;
+    const followers = userData.followers; 
+    let mutedBy = [];
+
+    if (userData.mutedBy !== undefined && userData.mutedBy !== null){
+        mutedBy = userData.muted;
+    }
+
+    for (const id of followers){
+        if (!mutedBy.includes(id)){
+            ids.push(id);
+        } 
+    }
+
+    return ids;
+}
+
 export async function getUsername(uid: any) {
     const userDoc = await userRef.doc(uid).get();
     const username = userDoc.data()!.username;

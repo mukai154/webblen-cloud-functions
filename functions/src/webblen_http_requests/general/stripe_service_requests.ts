@@ -24,3 +24,15 @@ export const createPaymentMethodFromCard = functions.https.onCall((data, context
 export const createPaymentMethodFromBankInfo = functions.https.onCall((data, context) => {
     return stripeService.createPaymentMethodFromBankInfo(data, context);
 });
+
+export const updateStripeAccountBalance = functions.https.onCall((data, context) => {
+    return stripeService.updateStripeAccountBalance(data, context);
+});
+
+export const processTicketPurchase = functions.https.onCall((data, context) => {
+    return stripeService.processTicketPurchase(data, context);
+});
+
+export const processInstantPayout = functions.https.onCall((data, context) => {
+    return stripeService.processInstantPayout(data, context);
+});

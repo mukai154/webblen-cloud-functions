@@ -8,3 +8,4 @@ admin.initializeApp(functions.config().firebase);
 export * from "./webblen_firestore_triggers/_export";
 export * from "./webblen_http_requests/general/_export";
 export * from "./webblen_http_requests/web_app/_export";
+export * from "./webblen_chron_jobs/_export";

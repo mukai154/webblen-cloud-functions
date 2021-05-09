@@ -6,7 +6,7 @@ const commentsRef = database.collection('comments');
 const userRef = database.collection('webblen_users');
 const notificationsRef = database.collection('webblen_notifications');
 
-export async function createNotificationForWebblenPost(post: any, authorUsername: any){
+export async function createNotificationForWebblenPost(post: any, authorUsername: any, followersToNotify: any){
     console.log('creating post notification...');
     const header = "@" + authorUsername + " Created a New Post";
     const subHeader = "Check it Out";
@@ -17,7 +17,7 @@ export async function createNotificationForWebblenPost(post: any, authorUsername
     const expDateInMilliseconds = timePostedInMilliseconds + 1209600000; //post expires in 3 months
     
     //send notification to suggested users 
-    for (const uid of post.suggestedUIDs) {
+    for (const uid of followersToNotify) {
         
         const currentDateInMilliseconds = new Date().getTime();
         const notifKey = (Math.floor(Math.random() * 9999999999) + 1).toString();

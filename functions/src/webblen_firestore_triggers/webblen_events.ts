@@ -11,7 +11,8 @@ export const createWebblenEventTrigger = functions.firestore
 	.onCreate(async (event) => {
 		const data = event.data();
 		const authorUsername = await webblenUserService.getUsername(data.authorID);
-		await webblenEventService.createNotificationForWebblenEvent(data, authorUsername);
+		const followersToNotify = await webblenUserService.getFollowersToNotify(data.authorID);
+		await webblenEventService.createNotificationForWebblenEvent(data, authorUsername, followersToNotify);
 		return algoliaService.saveWebblenEventToSearchIndex(data);
 	});
 

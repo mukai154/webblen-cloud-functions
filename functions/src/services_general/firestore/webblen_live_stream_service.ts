@@ -7,7 +7,7 @@ const streamsRef = database.collection('webblen_live_streams');
 const notificationsRef = database.collection('webblen_notifications');
 
 
-export async function createNotificationForWebblenLiveStream(stream: any, authorUsername: any){
+export async function createNotificationForWebblenLiveStream(stream: any, authorUsername: any, followersToNotify: any){
     const header = "@" + authorUsername + " Scheduled a New Live Stream";
     const subHeader = stream.title;
     const type = "stream";
@@ -17,8 +17,8 @@ export async function createNotificationForWebblenLiveStream(stream: any, author
     const expDateInMilliseconds = timePostedInMilliseconds + 1209600000; //post expires in 3 months
     
     //send notification to suggested users if stream is public
-    if (stream.privacy.downcase() === "public"){
-        for (const uid of stream.suggestedUIDs) {
+    if (stream.privacy === "Public"){
+        for (const uid of followersToNotify) {
             const doc = await userRef.doc(uid).get();
             if (doc.exists) {
                 

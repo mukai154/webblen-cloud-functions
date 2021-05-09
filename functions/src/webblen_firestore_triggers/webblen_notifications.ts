@@ -34,7 +34,7 @@ async function getNumberOfUnreadNotifications(uid: any){
 
 // Exports
 export const createWebblenNotificationTrigger = functions.firestore
-	.document("notifications/{notification}")
+	.document("webblen_notifications/{notification}")
 	.onCreate(async (event) => {
         const data = event.data();
         const receiverUID = data.receiverUID;
@@ -48,7 +48,6 @@ export const createWebblenNotificationTrigger = functions.firestore
             await notificationService.sendNotificationToSingleDevice(title, body, badgeCount.toString(), type, additionalData, messageToken);
         } else {
             console.log('no message token found');
-        
         }
 
 		return;

@@ -9,7 +9,7 @@ const eventsRef = database.collection('webblen_events');
 const notificationsRef = database.collection('webblen_notifications');
 
 
-export async function createNotificationForWebblenEvent(event: any, authorUsername: any){
+export async function createNotificationForWebblenEvent(event: any, authorUsername: any, followersToNotify: any){
     const header = "@" + authorUsername + " Scheduled a New Event";
     const subHeader = event.title;
     const type = "event";
@@ -19,8 +19,8 @@ export async function createNotificationForWebblenEvent(event: any, authorUserna
     const expDateInMilliseconds = timePostedInMilliseconds + 1209600000; //post expires in 3 months
     
     //send notification to suggested users if event is public
-    if (event.privacy.downcase() === "public"){
-        for (const uid of event.suggestedUIDs) {
+    if (event.privacy === "Public"){
+        for (const uid of followersToNotify) {
             const doc = await userRef.doc(uid).get();
             if (doc.exists) {
                 
