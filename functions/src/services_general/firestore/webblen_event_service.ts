@@ -16,7 +16,7 @@ export async function createNotificationForWebblenEvent(event: any, authorUserna
     const read = false;
     const senderUID = event.authorID;
     const timePostedInMilliseconds = new Date().getTime();
-    const expDateInMilliseconds = timePostedInMilliseconds + 1209600000; //post expires in 3 months
+    const expDateInMilliseconds = timePostedInMilliseconds + 7884000000; //post expires in 3 months
     
     //send notification to suggested users if event is public
     if (event.privacy === "Public"){

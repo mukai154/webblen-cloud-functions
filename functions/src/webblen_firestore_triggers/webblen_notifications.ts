@@ -44,11 +44,7 @@ export const createWebblenNotificationTrigger = functions.firestore
         const type = data.type;
         const additionalData = data.additionalData.toString();
         const messageToken = await getUserMessageToken(receiverUID);
-        if (messageToken !== undefined){
-            await notificationService.sendNotificationToSingleDevice(title, body, badgeCount.toString(), type, additionalData, messageToken);
-        } else {
-            console.log('no message token found');
-        }
+        await notificationService.sendNotificationToSingleDevice(title, body, badgeCount.toString(), type, additionalData, messageToken);
 
 		return;
 	});

@@ -14,7 +14,7 @@ export async function createNotificationForWebblenLiveStream(stream: any, author
     const read = false;
     const senderUID = stream.authorID;
     const timePostedInMilliseconds = new Date().getTime();
-    const expDateInMilliseconds = timePostedInMilliseconds + 1209600000; //post expires in 3 months
+    const expDateInMilliseconds = timePostedInMilliseconds + 7884000000; //post expires in 3 months
     
     //send notification to suggested users if stream is public
     if (stream.privacy === "Public"){
