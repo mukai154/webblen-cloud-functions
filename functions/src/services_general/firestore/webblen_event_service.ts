@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 
 import { getNearbyZipcodes, getInfoFromAddress } from '../../utils/location_functions';
+import { getTimeFromDateInMilliseconds } from '../../utils/time_functions';
 
 const database = admin.firestore();
 
@@ -184,15 +185,11 @@ export async function calculateAndDistributeEventPayouts(event: any) {
     }
 }
 
-
 export async function createWebblenEventFromScrapedData(data: any) {
-    console.log('create scraped event trigger...');
     const scrapedEvent = data;
 
-    console.log(scrapedEvent);
-
     const scrapedEventId = scrapedEvent.id;
-    const scrapedEventCity = scrapedEvent.city;
+    // const scrapedEventCity = scrapedEvent.city;
     const scrapedEventAddress = scrapedEvent.address;
     const scrapedEventDate = scrapedEvent.date;
     const scrapedEventDesc = scrapedEvent.description;
@@ -202,63 +199,78 @@ export async function createWebblenEventFromScrapedData(data: any) {
     const scrapedEventState = scrapedEvent.state;
     const scrapedEventTitle = scrapedEvent.title
     const scrapedEventUrl = scrapedEvent.url;
-    // const scrapedEventCategory = getEventCategoryFromDesc(scrapedEventDesc);
-    // const scrapedEventType = getEventTypeFromDesc(scrapedEventDesc);
 
-    console.log(scrapedEventId);
-    console.log(scrapedEventDesc);
+    // -------------------------------- Example locationInfo ----------------------------------
+    // {
+    //     "latitude": 48.8698679,
+    //     "longitude": 2.3072976,
+    //     "country": "France",
+    //     "countryCode": "FR",
+    //     "city": "Paris",
+    //     "zipcode": "75008",
+    //     "streetName": "Champs-Élysées",
+    //     "streetNumber": "29",
+    //     "administrativeLevels": {
+    //       "level1long": "Île-de-France",
+    //       "level1short": "IDF",
+    //       "level2long": "Paris",
+    //       "level2short": "75"
+    //     },
+    //     "provider": "google"
+    //   }
+    // -------------------------------- Example locationInfo ----------------------------------
 
     const locationInfo = await getInfoFromAddress(scrapedEventAddress);
     const lat = locationInfo.latitude;
     const lon = locationInfo.longitude;
     const zipcode = locationInfo.zipcode;
+    const city = locationInfo.city;
 
     const nearbyZipcodes = await getNearbyZipcodes(zipcode);
 
-    await eventsRef.doc(scrapedEventId).set({
-        'id': scrapedEventId,
+    const eventFromScrapedEventMap = {
+        'actualTurnout': 0,
+        'attendees': [],
         'authorID': "EtKiw3gK37QsOg6tPBnSJ8MhCm23",
-        'hasTickets': false,
+        'city': city,
+        'clicks': 0,
+        'description': scrapedEventDesc,
+        'endDate': scrapedEventDate,
+        'endDateTimeInMilliseconds': getTimeFromDateInMilliseconds(scrapedEventDate, scrapedEventEndTime),
+        'endTime': scrapedEventEndTime,
+        'estimatedTurnout': 0,
+        'eventPayout': 0,
+        'fbUsername': '',
         'flashEvent': false,
         'hasStream': false,
-        'title': scrapedEventTitle,
-        'description': scrapedEventDesc,
+        'hasTickets': false,
+        'id': scrapedEventId,
         'imageURL': scrapedEventImageUrl,
-        'venueName': '',
-        'venueSize': 'small',
-        'nearbyZipcodes': nearbyZipcodes,
-        'streetAddress': scrapedEventAddress,
-        'city': scrapedEventCity,
-        'province': scrapedEventState,
+        'instaUsername': '',
         'lat': lat,
         'lon': lon,
-        'sharedComs': [],
-        'tags': [],
-        'clicks': 0,
-        'website': scrapedEventUrl,
-        'fbUsername': '',
-        'instaUsername': '',
-        'twitterUsername': '',
-        'estimatedTurnout': 0,
-        'actualTurnout': 0,
-        'attendees': {},
-        'payout': 0.0001,
-        'recurrence': 'none',
-        'startDateTimeInMilliseconds': getTimeFromDateInMilliseconds(scrapedEventDate, scrapedEventStartTime),
-        'endDateTimeInMilliseconds': getTimeFromDateInMilliseconds(scrapedEventDate, scrapedEventEndTime),
-        'startDate': scrapedEventDate,
-        'endDate': scrapedEventDate,
-        'startTime': scrapedEventStartTime,
-        'endTime': scrapedEventEndTime,
-        'timezone': 'CDT',
-        'privacy': 'public',
-        'reported': false,
-        'webAppLink': `https://app.webblen.io/events/event?id=${scrapedEventId}`,
-        'savedBy': [],
-        'paidOut': false,
+        'nearbyZipcodes': nearbyZipcodes,
         'openToSponsors': false,
-        'suggestedUIDs': [],
-    });
+        'paidOut': false,
+        'privacy': 'public',
+        'province': scrapedEventState,
+        'recurrence': 'none',
+        'reported': 'false',
+        'savedBy': [],
+        'sharedComs': [],
+        'startDate': scrapedEventDate,
+        'startDateTimeInMilliseconds': getTimeFromDateInMilliseconds(scrapedEventDate, scrapedEventStartTime),
+        'startTime': scrapedEventStartTime,
+        'streetAddress': scrapedEventAddress,
+        'tags': [],
+        'timezone': 'CDT',
+        'title': scrapedEventTitle,
+        'twitterUsername': '',
+        'venueName': '',
+        'venueSize': 'medium',
+        'webAppLink': `https://app.webblen.io/#/event?id=${scrapedEventId}`,
+        'website': scrapedEventUrl,
+    }
 
-    return;
+    return eventFromScrapedEventMap;
 }

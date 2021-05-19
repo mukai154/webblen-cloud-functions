@@ -28,38 +28,87 @@ function getMonthNum(month: string): number {
     }
   }
 
-function getTimeFromDateInMilliseconds(startDate: string, startTime: String) {
+// function getTimeFromDateInMilliseconds(startDate: string, startTime: String) {
+//     const splitDate = startDate.split(/[ ,]+/);
+  
+//     const newDate = new Date();
+  
+//     const splitTime = startTime.split(/[: ]+/);
+
+//     let h = Number(splitTime[0]);
+//     if (h === 12 && (splitTime[2] === 'AM' || splitTime[2] === 'am')) {
+//       h = 0;
+//     } else if (h === 12 && (splitTime[2] === 'PM' || splitTime[2] === 'pm')) {
+//       h = 12;
+//     } else if (splitTime[2] === 'PM' || splitTime[2] === 'pm') {
+//       h += 12;
+//     } else {
+//       h = h;
+//     }
+  
+//     const m = Number(splitTime[1]);
+    
+//     if (splitDate.length === 4) {
+//       newDate.setDate(Number(splitDate[2]));
+//       newDate.setMonth(getMonthNum(splitDate[1]));
+//       newDate.setFullYear(Number(splitDate[3]));
+//     }
+//     if (splitDate.length === 3) {
+//       newDate.setDate(Number(splitDate[1]));
+//       newDate.setMonth(getMonthNum(splitDate[0]));
+//       newDate.setFullYear(Number(splitDate[2]));
+//     }
+    
+//     newDate.setHours((h - 5), m, 0, 0);
+  
+//     return newDate.getTime();
+//   }
+
+function getDateFromStringTime(startDate: string, startTime: string) {
     const splitDate = startDate.split(/[ ,]+/);
-  
-    const newDate = new Date();
-  
+
+    let newDate = new Date();
+
     const splitTime = startTime.split(/[: ]+/);
 
     let h = Number(splitTime[0]);
     if (h === 12 && (splitTime[2] === 'AM' || splitTime[2] === 'am')) {
-      h = 0;
+        h = 0;
     } else if (h === 12 && (splitTime[2] === 'PM' || splitTime[2] === 'pm')) {
-      h = 12;
+        h = 12;
     } else if (splitTime[2] === 'PM' || splitTime[2] === 'pm') {
-      h += 12;
+        h += 12;
     } else {
-      h = h;
+        h = h;
     }
-  
+
     const m = Number(splitTime[1]);
-    
+
     if (splitDate.length === 4) {
-      newDate.setDate(Number(splitDate[2]));
-      newDate.setMonth(getMonthNum(splitDate[1]));
-      newDate.setFullYear(Number(splitDate[3]));
+        newDate.setDate(Number(splitDate[2]));
+        newDate.setMonth(getMonthNum(splitDate[1]));
+        newDate.setFullYear(Number(splitDate[3]));
     }
     if (splitDate.length === 3) {
-      newDate.setDate(Number(splitDate[1]));
-      newDate.setMonth(getMonthNum(splitDate[0]));
-      newDate.setFullYear(Number(splitDate[2]));
+        newDate.setDate(Number(splitDate[1]));
+        newDate.setMonth(getMonthNum(splitDate[0]));
+        newDate.setFullYear(Number(splitDate[2]));
     }
-    
-    newDate.setHours((h - 5), m, 0, 0);
-  
-    return newDate.getTime();
-  }
+
+    newDate.setHours(h, m, 0, 0);
+
+    return newDate;
+}
+
+export function getTimeFromDateInMilliseconds(startDate: string, startTime: string) {
+    const timeInMilliseconds = getDateFromStringTime(startDate, startTime).getTime();
+
+    return timeInMilliseconds;
+}
+
+export function getCurrentTimeInMilliseconds() {
+    let newDate = new Date();
+    let newTime = newDate.getTime();
+
+    return newTime;
+}
