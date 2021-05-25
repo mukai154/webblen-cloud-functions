@@ -67,7 +67,7 @@ function getMonthNum(month: string): number {
 function getDateFromStringTime(startDate: string, startTime: string) {
     const splitDate = startDate.split(/[ ,]+/);
 
-    let newDate = new Date();
+    const newDate = new Date();
 
     const splitTime = startTime.split(/[: ]+/);
 
@@ -107,8 +107,8 @@ export function getTimeFromDateInMilliseconds(startDate: string, startTime: stri
 }
 
 export function getCurrentTimeInMilliseconds() {
-    let newDate = new Date();
-    let newTime = newDate.getTime();
+    const newDate = new Date();
+    const newTime = newDate.getTime();
 
     return newTime;
 }

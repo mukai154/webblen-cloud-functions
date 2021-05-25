@@ -28,30 +28,20 @@ export async function getUsername(uid: any) {
     return username
 }
 
-export async function haveEveryoneFollowWebblen(data: any, context: any) {
+export async function followWebblen(uid: any) {
+    const webblenDocRef = userRef.doc("EtKiw3gK37QsOg6tPBnSJ8MhCm23");
+    await webblenDocRef.update({'followers': admin.firestore.FieldValue.arrayUnion(uid)});
+    await userRef.doc(uid).update({'following': admin.firestore.FieldValue.arrayUnion("EtKiw3gK37QsOg6tPBnSJ8MhCm23")});
+}
+
+export async function haveEveryoneFollowWebblen() {
     const userQuery = await userRef.get();
     const userDocs = userQuery.docs;
-
-    const webblenDoc = await userRef.doc("EtKiw3gK37QsOg6tPBnSJ8MhCm23").get();
-    const webblenData = webblenDoc.data()!;
-    const webblenFollowers = webblenData.d.followers;
+    const webblenDocRef = userRef.doc("EtKiw3gK37QsOg6tPBnSJ8MhCm23");
 
     for (const userDoc of userDocs) {
         const id = userDoc.id;
-        const userData = userDoc.data().d;
-        let userFollowing = [];
-        if (userData.following === undefined || userData.following === null) {
-            userFollowing = [];
-        } else {
-            userFollowing = userData.following;
-        }
-        if (!userFollowing.includes("EtKiw3gK37QsOg6tPBnSJ8MhCm23")) {
-            userFollowing.push("EtKiw3gK37QsOg6tPBnSJ8MhCm23");
-            await userRef.doc(id).update({ "d.following": userFollowing });
-        }
-        if (!webblenFollowers.includes(id)) {
-            webblenFollowers.push(id);
-            await userRef.doc("EtKiw3gK37QsOg6tPBnSJ8MhCm23").update({ "d.followers": webblenFollowers });
-        }
+        await webblenDocRef.update({'followers': admin.firestore.FieldValue.arrayUnion(id)});
+        await userRef.doc(id).update({'following': admin.firestore.FieldValue.arrayUnion("EtKiw3gK37QsOg6tPBnSJ8MhCm23")});
     }
 }

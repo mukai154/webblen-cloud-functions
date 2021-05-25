@@ -118,7 +118,7 @@ export async function retrieveWebblenStripeAccountStatus(data: any, context: any
       error = e.raw.message;
     });
 
-    if (error != null){
+    if (error !== null){
       return error;
     }
 
