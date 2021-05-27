@@ -230,7 +230,7 @@ export async function createWebblenEventFromScrapedData(data: any) {
 
     const eventFromScrapedEventMap = {
         'actualTurnout': 0,
-        'attendees': [],
+        'attendees': {},
         'authorID': "EtKiw3gK37QsOg6tPBnSJ8MhCm23",
         'city': city,
         'clicks': 0,
@@ -252,7 +252,7 @@ export async function createWebblenEventFromScrapedData(data: any) {
         'nearbyZipcodes': nearbyZipcodes,
         'openToSponsors': false,
         'paidOut': false,
-        'privacy': 'public',
+        'privacy': 'Public',
         'province': scrapedEventState,
         'recurrence': 'none',
         'reported': 'false',
@@ -263,7 +263,7 @@ export async function createWebblenEventFromScrapedData(data: any) {
         'startTime': scrapedEventStartTime,
         'streetAddress': scrapedEventAddress,
         'tags': [],
-        'timezone': 'CDT',
+        'timezone': 'CST',
         'title': scrapedEventTitle,
         'twitterUsername': '',
         'venueName': '',
@@ -273,4 +273,15 @@ export async function createWebblenEventFromScrapedData(data: any) {
     }
 
     return eventFromScrapedEventMap;
+}
+
+export async function fixWebblenEvents(){
+    const query = await eventsRef.where('authorID', "==", "EtKiw3gK37QsOg6tPBnSJ8MhCm23").get();
+    for (const doc of query.docs){
+        await eventsRef.doc(doc.id).update({
+            'attendees': {},
+            'timezone': "CST",
+            'privacy': "Public",
+        });
+    }
 }
