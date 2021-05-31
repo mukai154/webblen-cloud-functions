@@ -10,7 +10,7 @@ export const createWebblenEventTrigger = functions.firestore
 	.document("webblen_events/{doc}")
 	.onCreate(async (event) => {
 		const data = event.data();
-		if (data.authorID != "EtKiw3gK37QsOg6tPBnSJ8MhCm23"){
+		if (data.authorID != "EtKiw3gK37QsOg6tPBnSJ8MhCm23" && (data.privacy.toLowerCase() != "private")){
 			const authorUsername = await webblenUserService.getUsername(data.authorID);
 			const followersToNotify = await webblenUserService.getFollowersToNotify(data.authorID);
 			await webblenEventService.createNotificationForWebblenEvent(data, authorUsername, followersToNotify);
