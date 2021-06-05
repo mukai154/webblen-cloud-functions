@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin'
 
 const database = admin.firestore();
-const postsRef = database.collection('posts');
+const postsRef = database.collection('webblen_posts');
 const commentsRef = database.collection('comments');
 const userRef = database.collection('webblen_users');
 const notificationsRef = database.collection('webblen_notifications');
@@ -63,6 +63,6 @@ export async function distributePostPoints() {
             const newBalance = userData.WBLN + pay;
             await userRef.doc(uid).update({ "ap": ap, "WBLN": newBalance });
         }
-        await postsRef.doc(postDoc.id).update({ 'paidOut': true });
+        await postsRef.doc(postDoc.id).update({'paidOut': true });
     }
 }

@@ -4,7 +4,7 @@ export async function saveWebblenPostToSearchIndex(data: any) {
 	const objectData = data;
 	const objectID = data.id;
 	const algoliaClient = await algoliaInit.getAlgoliaClient();
-	const index = algoliaClient.initIndex("posts");
+	const index = algoliaClient.initIndex("webblen_posts");
 	await index
 		.saveObject({ ...objectData, objectID })
 		.catch((error: any) => {
@@ -15,8 +15,8 @@ export async function saveWebblenPostToSearchIndex(data: any) {
 export async function deleteWebblenPostFromSearchIndex(data: any) {
 	const objectID = data.id;
 	const algoliaClient = await algoliaInit.getAlgoliaClient();
-	const causesIndex = algoliaClient.initIndex("posts");
-	await causesIndex.deleteObject(objectID).catch((error: any) => {
+	const index = algoliaClient.initIndex("webblen_posts");
+	await index.deleteObject(objectID).catch((error: any) => {
 		console.log(error);
 	});
 }

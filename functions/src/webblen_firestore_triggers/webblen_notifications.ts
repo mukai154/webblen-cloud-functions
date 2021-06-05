@@ -42,9 +42,7 @@ export const createWebblenNotificationTrigger = functions.firestore
         const body = data.subHeader;
         const badgeCount = await getNumberOfUnreadNotifications(receiverUID);
         const type = data.type;
-        const additionalData = data.additionalData.toString();
         const messageToken = await getUserMessageToken(receiverUID);
-        await notificationService.sendNotificationToSingleDevice(title, body, badgeCount.toString(), type, additionalData, messageToken);
-
+        await notificationService.sendNotificationToSingleDevice(title, body, badgeCount.toString(), type, messageToken);
 		return;
 	});

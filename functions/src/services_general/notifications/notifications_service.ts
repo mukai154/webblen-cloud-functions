@@ -2,7 +2,7 @@ import * as admin from 'firebase-admin'
 
 const messagingAdmin = admin.messaging();
 
-export async function sendNotificationToSingleDevice(title: any, body: any, badgeCount: any, type: any, data: any, messageToken: any) {
+export async function sendNotificationToSingleDevice(title: any, body: any, badgeCount: any, type: any, messageToken: any) {
     console.log('attempting to send notification to: ', messageToken); 
     const payload = {
         notification: {
@@ -19,7 +19,7 @@ export async function sendNotificationToSingleDevice(title: any, body: any, badg
     return;
 }
 
-export async function sendNotificationToMultipleDevices(title: any, body: any, badgeCount: any, type: any, data: any, messageTokens: any) {
+export async function sendNotificationToMultipleDevices(title: any, body: any, badgeCount: any, type: any, messageTokens: any) {
     let payload;
     for (const messageToken of messageTokens){
         payload = {
