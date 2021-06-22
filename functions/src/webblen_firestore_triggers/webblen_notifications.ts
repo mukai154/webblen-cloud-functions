@@ -8,7 +8,6 @@ import * as notificationService from "../services_general/notifications/notifica
 // Data Collections
 const database = admin.firestore();
 const userRef = database.collection('webblen_users');
-const notifRef = database.collection('webblen_notifications');
 
 //Helper Functions
 async function getUserMessageToken(uid: any){
@@ -23,14 +22,6 @@ async function getUserMessageToken(uid: any){
     return messageToken;
 }
 
-async function getNumberOfUnreadNotifications(uid: any){
-    let num = 1;
-    const querySnapshot = await notifRef.where('receiverUID', '==', uid).where('read', '==', false).get();
-    if (!querySnapshot.empty){
-        num = querySnapshot.docs.length;
-    }
-    return num;
-}
 
 // Exports
 export const createWebblenNotificationTrigger = functions.firestore
@@ -40,9 +31,10 @@ export const createWebblenNotificationTrigger = functions.firestore
         const receiverUID = data.receiverUID;
         const title = data.header;
         const body = data.subHeader;
-        const badgeCount = await getNumberOfUnreadNotifications(receiverUID);
         const type = data.type;
         const messageToken = await getUserMessageToken(receiverUID);
-        await notificationService.sendNotificationToSingleDevice(title, body, badgeCount.toString(), type, messageToken);
+        if (messageToken !== undefined){
+            await notificationService.sendNotificationToSingleDevice(title, body, type, messageToken);
+        }
 		return;
 	});

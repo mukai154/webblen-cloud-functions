@@ -10,7 +10,7 @@ export const createWebblenLiveStreamTrigger = functions.firestore
 	.document("webblen_live_streams/{doc}")
 	.onCreate(async (event) => {
 		const data = event.data();
-		if (data.privacy.toLowerCase() != "private"){
+		if (data.privacy.toLowerCase() !== "private"){
 			const authorUsername = await webblenUserService.getUsername(data.hostID);
 			const followersToNotify = await webblenUserService.getFollowersToNotify(data.hostID);
 			await webblenLiveStreamService.createNotificationForWebblenLiveStream(data, authorUsername, followersToNotify);

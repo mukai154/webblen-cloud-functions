@@ -14,6 +14,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
+    "@mux/mux-node": "^3.2.3",
     "@sendgrid/mail": "^7.4.2",
     "@types/algoliasearch": "^3.34.11",
     "@types/cheerio": "^0.22.28",

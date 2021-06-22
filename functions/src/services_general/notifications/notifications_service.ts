@@ -2,7 +2,7 @@ import * as admin from 'firebase-admin'
 
 const messagingAdmin = admin.messaging();
 
-export async function sendNotificationToSingleDevice(title: any, body: any, badgeCount: any, type: any, messageToken: any) {
+export async function sendNotificationToSingleDevice(title: any, body: any,type: any, messageToken: any) {
     console.log('attempting to send notification to: ', messageToken); 
     const payload = {
         notification: {
