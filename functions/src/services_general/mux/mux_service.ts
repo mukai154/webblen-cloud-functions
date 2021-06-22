@@ -13,7 +13,6 @@ const streamsRef = database.collection('webblen_live_streams');
 //streams
 export async function createMuxStream(data: any) {
     let error = "";
-    const simulcastTargets = [];
 
     //stream key data
     const streamID = data.streamID;    
@@ -28,29 +27,6 @@ export async function createMuxStream(data: any) {
     const secret = snapshotData.secret;
 
     const { Video } = new Mux(accessToken, secret);
-    
-    //add stream keys
-    if (twitchStreamKey.length !== 0){
-        const streamData = {
-            "url": "rtmp://live-iad.twitch.tv/app/",
-            "stream_key": twitchStreamKey
-        };
-        simulcastTargets.push(streamData);
-    }
-    if (youtubeStreamKey.length !== 0){
-        const streamData = {
-            "url": "rtmp://a.rtmp.youtube.com/live2",
-            "stream_key": youtubeStreamKey
-        };
-        simulcastTargets.push(streamData);
-    }
-    if (fbStreamKey.length !== 0){
-        const streamData = {
-            "url": "rtmps://live-api-s.facebook.com:443/rtmp/",
-            "stream_key": fbStreamKey
-        };
-        simulcastTargets.push(streamData);
-    }
     
     //create livestream
     const response = await Video.LiveStreams.create({
@@ -82,23 +58,58 @@ export async function createMuxStream(data: any) {
     //log mux stream id & key
     if (error.length == 0){
         console.log(response);
+        const muxStreamID = response['id'];
+        const muxStreamKey = response['stream_key'];
+
         await streamsRef.doc(streamID).update({
-            "muxStreamID": response['id'],
-            "muxStreamKey": response['stream_key'],
+            "muxStreamID": muxStreamID,
+            "muxStreamKey": muxStreamKey,
         });
 
         //configure simulcast targets
-        if (simulcastTargets.length > 0){
-            for (const targetData of simulcastTargets){
-                const muxData = {
-                    'muxStreamID': response['id'],
-                    'targetData': targetData,
-                }; 
-                try {
-                    await configureStreamSimulcastTarget(muxData, accessToken, secret);
-                } catch (e) {
-                    console.log(e);
-                }
+        if (twitchStreamKey.length !== 0){
+            const targetData = {
+                url: "rtmp://live-iad.twitch.tv/app/",
+                stream_key: twitchStreamKey
+            };
+            const muxData = {
+                "muxStreamID": muxStreamID,
+                "targetData": targetData,
+            }; 
+            try {
+                await configureStreamSimulcastTarget(muxData, accessToken, secret);
+            } catch (e) {
+                console.log(e);
+            }
+        }
+        if (youtubeStreamKey.length !== 0){
+            const targetData = {
+                "url": "rtmp://a.rtmp.youtube.com/live2",
+                "stream_key": youtubeStreamKey
+            };
+            const muxData = {
+                "muxStreamID": muxStreamID,
+                "targetData": targetData,
+            }; 
+            try {
+                await configureStreamSimulcastTarget(muxData, accessToken, secret);
+            } catch (e) {
+                console.log(e);
+            }
+        }
+        if (fbStreamKey.length !== 0){
+            const targetData = {
+                "url": "rtmps://live-api-s.facebook.com:443/rtmp/",
+                "stream_key": fbStreamKey
+            };
+            const muxData = {
+                "muxStreamID": muxStreamID,
+                "targetData": targetData,
+            }; 
+            try {
+                await configureStreamSimulcastTarget(muxData, accessToken, secret);
+            } catch (e) {
+                console.log(e);
             }
         }
     }
@@ -114,7 +125,6 @@ async function configureStreamSimulcastTarget(data: any, accessToken: any, secre
     console.log("MUX STREAM ID: " + muxStreamID);
     
     const targetData = data.targetData;
-    console.log("MUX TARGET DATA: " + targetData);
         
     //create simultaneous livestream
     const plainCredentials = accessToken + ":" + secret;
@@ -123,15 +133,22 @@ async function configureStreamSimulcastTarget(data: any, accessToken: any, secre
 
     const requestURL = 'https://api.mux.com/video/v1/live-streams/' + muxStreamID + '/simulcast-targets';
 
+    const requestJsonData = JSON.stringify({
+        url: targetData['url'],
+        stream_key: targetData['stream_key']
+    });
+
+    console.log("MUX TARGET DATA: " + requestJsonData);
+
     //Set request parameters
     const options = {
         url: requestURL,
-        method: 'PUT',
+        method: 'POST',
         headers: {
             'Authorization': authorizationField,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify(targetData)
+        body: requestJsonData
     }
 
     // Create request object and send request
