@@ -9,133 +9,78 @@ const platformRef = database.collection('app_release_info');
 const streamsRef = database.collection('webblen_live_streams');
 
 //MOBILE REQUESTS
-
-//streams
 export async function createMuxStream(data: any) {
-    let error = "";
+    let err = "";
 
-    //stream key data
+    //request data
     const streamID = data.streamID;    
     const twitchStreamKey = data.twitchStreamKey;
     const youtubeStreamKey = data.youtubeStreamKey;
     const fbStreamKey = data.fbStreamKey;
+    const simulcastTargets = [];
     
+    //configure simulcast targets
+    if (twitchStreamKey.length !== 0){
+        const targetData = {
+            "url": "rtmp://live-iad.twitch.tv/app/",
+            "stream_key": twitchStreamKey,
+            "passthrough": "twitch stream"
+        };
+        simulcastTargets.push(targetData);
+    }
+    if (youtubeStreamKey.length !== 0){
+        const targetData = {
+            "url": "rtmp://a.rtmp.youtube.com/live2",
+            "stream_key": youtubeStreamKey,
+            "passthrough": "youtube stream"
+        };
+        simulcastTargets.push(targetData);
+    }
+    if (fbStreamKey.length !== 0){
+        const targetData = {
+            "url": "rtmps://live-api-s.facebook.com:443/rtmp/",
+            "stream_key": fbStreamKey,
+            "passthrough": "fb stream"
+        };
+        simulcastTargets.push(targetData);
+    }
+    
+    console.log(simulcastTargets);
+
     //mux data & credentials
     const muxDoc = await platformRef.doc('mux').get();
     const snapshotData = muxDoc.data()!;
     const accessToken = snapshotData.token;
     const secret = snapshotData.secret;
+        
+    //mux auth
+    const plainCredentials = accessToken + ":" + secret;
+    const encodedCredential = Buffer.from(plainCredentials).toString('base64')
+    const authorizationField = "Basic " + encodedCredential
 
-    const { Video } = new Mux(accessToken, secret);
-    
-    //create livestream
-    const response = await Video.LiveStreams.create({
+    const requestURL = 'https://api.mux.com/video/v1/live-streams';
+
+    const requestJsonData = JSON.stringify({
         playback_policy: 'public',
         new_asset_settings: { 
             playback_policy: 'public',
             input: [
                 {
-                "url": "https://firebasestorage.googleapis.com/v0/b/webblen-events.appspot.com/o/app_images%2FtinyLogo.png?alt=media&token=c8fdcce3-34a7-4455-b07f-8daf254a65be",
+                "url": "https://firebasestorage.googleapis.com/v0/b/webblen-events.appspot.com/o/app_images%2Ftiny%20webblen%20logo.png?alt=media&token=384520b6-df58-4016-8dd6-bf8f371e6bbd",
                 "overlay_settings": {
                     "vertical_align": "bottom",
-                    "vertical_margin": "5%",
+                    "vertical_margin": "2%",
                     "horizontal_align": "right",
-                    "horizontal_margin": "5%",
-                    "width": "80px",
-                    "opacity": "90%"
+                    "horizontal_margin": "2%",
+                    "height": "85px",
+                    "opacity": "80%"
                 }
                 }
             ] 
         },
-        reconnect_window: 300,
-        //test: true,
-
-       }).catch(function onError(e:any) {
-        error = e.toString();
-        console.log(error);
-      });
-    
-    //log mux stream id & key
-    if (error.length == 0){
-        console.log(response);
-        const muxStreamID = response['id'];
-        const muxStreamKey = response['stream_key'];
-
-        await streamsRef.doc(streamID).update({
-            "muxStreamID": muxStreamID,
-            "muxStreamKey": muxStreamKey,
-        });
-
-        //configure simulcast targets
-        if (twitchStreamKey.length !== 0){
-            const targetData = {
-                url: "rtmp://live-iad.twitch.tv/app/",
-                stream_key: twitchStreamKey
-            };
-            const muxData = {
-                "muxStreamID": muxStreamID,
-                "targetData": targetData,
-            }; 
-            try {
-                await configureStreamSimulcastTarget(muxData, accessToken, secret);
-            } catch (e) {
-                console.log(e);
-            }
-        }
-        if (youtubeStreamKey.length !== 0){
-            const targetData = {
-                "url": "rtmp://a.rtmp.youtube.com/live2",
-                "stream_key": youtubeStreamKey
-            };
-            const muxData = {
-                "muxStreamID": muxStreamID,
-                "targetData": targetData,
-            }; 
-            try {
-                await configureStreamSimulcastTarget(muxData, accessToken, secret);
-            } catch (e) {
-                console.log(e);
-            }
-        }
-        if (fbStreamKey.length !== 0){
-            const targetData = {
-                "url": "rtmps://live-api-s.facebook.com:443/rtmp/",
-                "stream_key": fbStreamKey
-            };
-            const muxData = {
-                "muxStreamID": muxStreamID,
-                "targetData": targetData,
-            }; 
-            try {
-                await configureStreamSimulcastTarget(muxData, accessToken, secret);
-            } catch (e) {
-                console.log(e);
-            }
-        }
-    }
-    console.log(response);
-    return response;
-}
-
-async function configureStreamSimulcastTarget(data: any, accessToken: any, secret: any) {
-    //let error = "";
-
-    //request data
-    const muxStreamID = data.muxStreamID;
-    console.log("MUX STREAM ID: " + muxStreamID);
-    
-    const targetData = data.targetData;
+        reconnect_window: 300
+        //simulcastTargets: simulcastTargets,
         
-    //create simultaneous livestream
-    const plainCredentials = accessToken + ":" + secret;
-    const encodedCredential = Buffer.from(plainCredentials).toString('base64')
-    const authorizationField = "Basic " + encodedCredential
-
-    const requestURL = 'https://api.mux.com/video/v1/live-streams/' + muxStreamID + '/simulcast-targets';
-
-    const requestJsonData = JSON.stringify({
-        url: targetData['url'],
-        stream_key: targetData['stream_key']
     });
 
     console.log("MUX TARGET DATA: " + requestJsonData);
@@ -154,16 +99,30 @@ async function configureStreamSimulcastTarget(data: any, accessToken: any, secre
     // Create request object and send request
     const httpsReq = new Promise<any>((resolve, reject) => {
         request(options, function (error:any, res:any, body:any) {
-          console.error('error:', error); // Print the error if one occurred
-          console.log('statusCode:', res && res.statusCode); // Print the response status code if a response was received
-          resolve(JSON.parse(body));
-          reject('error');
-          });
+            if (error !== null){
+                err = error;
+            }
+            console.error('error:', error); // Print the error if one occurred
+            console.log('statusCode:', res && res.statusCode); // Print the response status code if a response was received
+            resolve(JSON.parse(body));
+            reject('error');
+        });
       });
 
     const response = await httpsReq;
     
     console.log(response);
+
+    if (err.length == 0){
+        console.log(response);
+        const muxStreamID = response['data']['id'];
+        const muxStreamKey = response['data']['stream_key'];
+
+        await streamsRef.doc(streamID).update({
+            "muxStreamID": muxStreamID,
+            "muxStreamKey": muxStreamKey,
+        });
+    }
 
     return response;
 }
